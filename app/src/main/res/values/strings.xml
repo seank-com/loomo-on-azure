@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Loomo on Azure</string>
+    <string name="process_start">Start</string>
+    <string name="process_stop">Stop</string>
+    <string name="clear">Clear</string>
+    <string name="move">Move</string>
+    <string name="direction_forward">FRWD</string>
+    <string name="direction_back">BACK</string>
+    <string name="direction_left">LEFT</string>
+    <string name="direction_right">RITE</string>
 </resources>
