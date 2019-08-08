@@ -8,12 +8,20 @@ import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.microsoft.azure.sdk.iot.device.DeviceClient;
+import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
+import com.microsoft.azure.sdk.iot.device.IotHubMessageResult;
+import com.microsoft.azure.sdk.iot.device.Message;
 import com.segway.robot.sdk.base.bind.ServiceBinder;
 import com.segway.robot.sdk.locomotion.head.Head;
 import com.segway.robot.sdk.locomotion.sbv.Base;
 
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -35,6 +43,11 @@ public class MainActivity extends AppCompatActivity {
     private boolean isHeadBind = false;
     private Base robotBase;
     private boolean isBaseBind = false;
+
+    private final String connString = "[device connection string]";
+    private boolean isConnected = false;
+    private DeviceClient client;
+    private MessageCallback callback = new MessageCallback();
 
     TextView output;
     ScrollView container;
@@ -62,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
                                 yaw = robotHead.getWorldYaw().getAngle();
                                 pitch = robotHead.getWorldPitch().getAngle();
 
-                                print("DETECT yaw: " + String.valueOf(yaw) + ", pitch: " + String.valueOf(pitch));
+                                //print("DETECT yaw: " + String.valueOf(yaw) + ", pitch: " + String.valueOf(pitch));
 
                                 headYaw += headYawDelta;
                                 if (Math.abs(headYaw) > maxYawRadians) {
@@ -76,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
                                     headPitch = (headPitch / Math.abs(headPitch)) * maxPitchRadians;
                                 }
 
-                                print("SET yaw: " + String.valueOf(headYaw) + ", pitch: " + String.valueOf(headPitch));
+                                //print("SET yaw: " + String.valueOf(headYaw) + ", pitch: " + String.valueOf(headPitch));
 
                                 robotHead.setWorldYaw(headYaw);
                                 robotHead.setWorldPitch(headPitch);
@@ -86,14 +99,22 @@ public class MainActivity extends AppCompatActivity {
                                 angularVelocity = robotBase.getAngularVelocity().getSpeed();
                                 linearVelocity = robotBase.getLinearVelocity().getSpeed();
 
-                                print("DETECT angularVelocity: " + String.valueOf(angularVelocity) + ", linearVelocity: " + String.valueOf(linearVelocity));
+                                //print("DETECT angularVelocity: " + String.valueOf(angularVelocity) + ", linearVelocity: " + String.valueOf(linearVelocity));
+                            }
+
+                            if (isConnected) {
+                                String msgStr = "{\"yaw\": " + yaw + ", \"pitch\": " + pitch + ", \"linear\": " + linearVelocity + ", \"angular\": " + angularVelocity + "}";
+                                Message msg = new Message(msgStr);
+                                msg.setMessageId(UUID.randomUUID().toString());
+                                //print("Sending: " + msgStr);
+                                client.sendEventAsync(msg, null, null);
                             }
                         }
                     });
                 }
             };
 
-            timer.schedule(timerTask, 250, 250);
+            timer.schedule(timerTask, 5000, 5000);
             process.setText(R.string.process_stop);
             process.setEnabled(true);
         }
@@ -139,12 +160,17 @@ public class MainActivity extends AppCompatActivity {
     };
 
     public void print(String msg) {
-        String out = output.getText().toString();
-        out += "\n" + msg;
-        output.setText(out);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                String out = output.getText().toString();
+                out += "\n" + msg;
+                output.setText(out);
 
-        int height = output.getHeight();
-        container.scrollTo(0, height);
+                int height = output.getHeight();
+                container.scrollTo(0, height);
+            }
+        });
     }
 
     private void startProcess() {
@@ -166,6 +192,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void move(final float linear, final float angular) {
+        if (!isBaseBind) {
+            return;
+        }
+
         print("move(" + String.valueOf(linear) + ", " + String.valueOf(angular) + ")");
         new Thread()  {
             @Override
@@ -185,6 +215,30 @@ public class MainActivity extends AppCompatActivity {
         }.start();
     }
 
+    static class MessageCallback implements com.microsoft.azure.sdk.iot.device.MessageCallback
+    {
+        JsonParser parser = new JsonParser();
+
+        public IotHubMessageResult execute(Message msg, Object context) {
+            String strMsg = new String(msg.getBytes());
+            JsonElement element = parser.parse(strMsg);
+
+            if (element.isJsonObject()) {
+                JsonObject command = element.getAsJsonObject();
+                if (command.has("type")) {
+                    if (command.get("type").getAsString().equals("move")) {
+                        float linear = command.get("linear").getAsFloat();
+                        float angular = command.get("angular").getAsFloat();
+
+                        MainActivity main = (MainActivity)context;
+                        main.move(linear, angular);
+                    }
+                }
+            }
+            return IotHubMessageResult.COMPLETE;
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -200,6 +254,21 @@ public class MainActivity extends AppCompatActivity {
 
         robotHead = Head.getInstance();
         robotBase = Base.getInstance();
+
+        try {
+            client = new DeviceClient(connString, IotHubClientProtocol.MQTT);
+            client.open();
+            client.setMessageCallback(callback, this);
+            isConnected = true;
+            print("Connected to IoTHub");
+        } catch(Exception e) {
+            print("Exception opening IoTHub connection: " + e.getMessage() + e.toString());
+            try {
+                client.closeNow();
+            } catch(Exception e2) {
+
+            }
+        }
     }
 
     @Override

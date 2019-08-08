@@ -17,21 +17,29 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    compileOptions {
+        sourceCompatibility = '1.8'
+        targetCompatibility = '1.8'
+    }
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.0.2'
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
-    implementation 'com.segway.robot:visionsdk:0.6.547'
-    implementation 'com.segway.robot:speech-sdk:0.5.327'
+
+    //implementation 'com.segway.robot:visionsdk:0.6.547'
+    //implementation 'com.segway.robot:speech-sdk:0.5.327'
     implementation 'com.segway.robot:headsdk:0.6.746'
     implementation 'com.segway.robot:basesdk:0.6.746'
-    implementation 'com.segway.robot:sensorsdk:0.6.746'
-    implementation 'com.segway.robot:robot-connectivity-sdk:0.5.104'
-    implementation 'com.segway.robot:mobile-connectivity-sdk:0.5.104'
-    implementation 'com.segway.robot:emoji:0.1.28'
+    //implementation 'com.segway.robot:sensorsdk:0.6.746'
+    //implementation 'com.segway.robot:robot-connectivity-sdk:0.5.104'
+    //implementation 'com.segway.robot:mobile-connectivity-sdk:0.5.104'
+    //implementation 'com.segway.robot:emoji:0.1.28'
     implementation 'com.segway.robot:support-lib:1.1.2'
+
+    api 'com.microsoft.azure.sdk.iot:iot-device-client:1.17.5'
+    implementation 'com.google.code.gson:gson:2.8.5'
 
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.2.0'
