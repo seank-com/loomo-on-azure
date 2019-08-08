@@ -27,7 +27,8 @@ Uncommenting one of these lines in ```app/build.gradle```
 //2-implementation 'com.segway.robot:mobile-connectivity-sdk:0.5.104'
 ```
 
-Will cause the following build errors
+Will cause the following build errors when you also include the Azure IoT SDK.
+
 ```bash
 
 FAILURE: Build failed with an exception.
@@ -72,5 +73,3 @@ Execution failed for task ':app:checkDebugDuplicateClasses'.
   
   Go to the documentation to learn how to <a href="d.android.com/r/tools/classpath-sync-errors">Fix dependency resolution errors</a>.
 ```
-
-one of the loomo libraries commented out in the ```build.gradle``` file causes a build conflict with the Azure IoT SDK, I need to determine which one.
