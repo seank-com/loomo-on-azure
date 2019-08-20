@@ -2,6 +2,8 @@ package com.example.loomoonazure;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -56,9 +58,18 @@ public class MainActivity extends AppCompatActivity {
     Timer timer = null;
     TimerTask timerTask = null;
 
-    private void scheduleTimer() {
+    public enum ServiceType {
+        BASE, HEAD, SENSOR
+    }
+
+    private void initRobot() {
         // only schedule the timer when all services are bound
         if (isBindHead && isBindBase && isBindSensor && isConnected) {
+
+            robotHead.resetOrientation();
+            robotHead.setMode(Head.MODE_SMOOTH_TACKING);
+            robotBase.setControlMode(Base.CONTROL_MODE_RAW);
+
             timer = new Timer();
             timerTask = new TimerTask() {
                 @Override
@@ -82,51 +93,53 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private ServiceBinder.BindStateListener bindStateListenerBase = new ServiceBinder.BindStateListener() {
+    class RobotBindStateListener implements ServiceBinder.BindStateListener {
+        private ServiceType service;
+
+        public RobotBindStateListener(ServiceType service)
+        {
+            this.service = service;
+        }
+
         @Override
         public void onBind() {
-            print("Bind Base");
-            isBindBase = true;
-            robotBase.setControlMode(Base.CONTROL_MODE_RAW);
-            scheduleTimer();
+            switch(service) {
+                case HEAD:
+                    print("Bind Head");
+                    isBindHead = true;
+                    initRobot();
+                    break;
+                case BASE:
+                    print("Bind Base");
+                    isBindBase = true;
+                    initRobot();
+                    break;
+                case SENSOR:
+                    print("Bind Sensor");
+                    isBindSensor = true;
+                    initRobot();
+                    break;
+            }
         }
+
         @Override
         public void onUnbind(String reason) {
-            print("Unbind Base");
-            isBindBase = false;
+            switch(service) {
+                case HEAD:
+                    print("Unbind Head");
+                    isBindHead = false;
+                    break;
+                case BASE:
+                    print("Unbind Base");
+                    isBindBase = false;
+                    break;
+                case SENSOR:
+                    print("Unbind Sensor");
+                    isBindSensor = false;
+                    break;
+            }
         }
-    };
-
-    private ServiceBinder.BindStateListener bindStateListenerHead = new ServiceBinder.BindStateListener() {
-        @Override
-        public void onBind() {
-            print("Bind Head");
-            isBindHead = true;
-            robotHead.setMode(Head.MODE_SMOOTH_TACKING);
-            robotHead.resetOrientation();
-            scheduleTimer();
-        }
-        @Override
-        public void onUnbind(String reason) {
-            print("Unbind Head");
-            isBindHead = false;
-        }
-    };
-
-    private ServiceBinder.BindStateListener bindStateListenerSensor = new ServiceBinder.BindStateListener() {
-        @Override
-        public void onBind() {
-            print("Bind Sensor");
-            isBindSensor = true;
-            scheduleTimer();
-        }
-        @Override
-        public void onUnbind(String reason) {
-            print("Unbind Sensor");
-            isBindSensor = false;
-        }
-    };
-
+    }
 
     public void print(String msg) {
         runOnUiThread(new Runnable() {
@@ -140,30 +153,6 @@ public class MainActivity extends AppCompatActivity {
                 container.scrollTo(0, height);
             }
         });
-    }
-
-    public void move(final float linear, final float angular) {
-        if (!isBindBase) {
-            return;
-        }
-
-        print("move(" + String.valueOf(linear) + ", " + String.valueOf(angular) + ")");
-//        new Thread()  {
-//            @Override
-//            public void run() {
-                robotBase.setLinearVelocity(linear);
-                robotBase.setAngularVelocity(angular);
-
-//                try {
-//                    Thread.sleep(1000);
-//                } catch (InterruptedException e) {
-//                    print(e.getMessage());
-//                }
-//
-//                robotBase.setLinearVelocity(0);
-//                robotBase.setAngularVelocity(0);
-//            }
-//        }.start();
     }
 
     static class MessageCallback implements com.microsoft.azure.sdk.iot.device.MessageCallback
@@ -182,8 +171,22 @@ public class MainActivity extends AppCompatActivity {
                         float angular = command.get("angular").getAsFloat();
 
                         MainActivity main = (MainActivity)context;
-                        main.move(linear, angular);
+                        if (main.robotBase.isBind()) {
+                            main.robotBase.setLinearVelocity(linear);
+                            main.robotBase.setAngularVelocity(angular);
+                        }
                     }
+                    else if (command.get("type").getAsString().equals("look")) {
+                        float yaw = command.get("yaw").getAsFloat();
+                        float pitch = command.get("pitchr").getAsFloat();
+
+                        MainActivity main = (MainActivity)context;
+                        if (main.robotHead.isBind()) {
+                            main.robotHead.setWorldYaw(yaw);
+                            main.robotHead.setWorldPitch(pitch);
+                        }
+                    }
+
                 }
             }
             return IotHubMessageResult.COMPLETE;
@@ -197,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
 
         output = (TextView)findViewById(R.id.output);
         container = (ScrollView)findViewById(R.id.container);
-        direction = (Button)findViewById(R.id.direction);
+        direction = (Button)findViewById(R.id.demo);
 
         output.setText("");
         print("onCreate");
@@ -211,14 +214,13 @@ public class MainActivity extends AppCompatActivity {
         robotSensor.bindService(getApplicationContext(), bindStateListenerSensor);
         telemetry = new Telemetry(robotBase, robotHead, robotSensor);
 
-
         try {
             client = new DeviceClient(connString, IotHubClientProtocol.MQTT);
             client.open();
             client.setMessageCallback(callback, this);
             isConnected = true;
             print("Connected to IoTHub");
-            scheduleTimer();
+            initRobot();
         } catch(Exception e) {
             print("Exception opening IoTHub connection: " + e.getMessage() + e.toString());
             try {
@@ -237,6 +239,7 @@ public class MainActivity extends AppCompatActivity {
 
         robotHead.unbindService();
         robotBase.unbindService();
+        robotSensor.unbindService();
         isConnected = false;
         try {
             client.closeNow();
@@ -256,6 +259,13 @@ public class MainActivity extends AppCompatActivity {
 
     public void onClick(View view) {
         switch (view.getId()) {
+            case R.id.clear:
+                output.setText("");
+                break;
+            case R.id.move:
+                Intent intent = new Intent(this, MoveActivity.class);
+                startActivity(intent);
+                break;
             case R.id.reset:
                 if (isBindBase) {
                     robotBase.cleanOriginalPoint();
@@ -263,46 +273,7 @@ public class MainActivity extends AppCompatActivity {
                     robotBase.setOriginalPoint(pose2D);
                 }
                 break;
-            case R.id.clear:
-                output.setText("");
-                break;
-            case R.id.direction:
-                switch (baseDirection) {
-                    case FORWARD:
-                        baseDirection = BACK;
-                        direction.setText(R.string.direction_back);
-                        break;
-                    case BACK:
-                        baseDirection = LEFT;
-                        direction.setText(R.string.direction_left);
-                        break;
-                    case LEFT:
-                        baseDirection = RIGHT;
-                        direction.setText(R.string.direction_right);
-                        break;
-                    case RIGHT:
-                        baseDirection = FORWARD;
-                        direction.setText(R.string.direction_forward);
-                        break;
-                }
-                break;
-            case R.id.move:
-                if (isBindBase) {
-                    switch (baseDirection) {
-                        case FORWARD:
-                            move(1f, 0);
-                            break;
-                        case BACK:
-                            move(-1f, 0);
-                            break;
-                        case LEFT:
-                            move(0, 1f);
-                            break;
-                        case RIGHT:
-                            move(0, -1f);
-                            break;
-                    }
-                }
+            case R.id.demo:
                 break;
         }
     }

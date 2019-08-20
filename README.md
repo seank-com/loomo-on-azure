@@ -102,7 +102,6 @@ Loomo sends the following telemetry data to the cloud
     "ConnectionDeviceGenerationId":"637008302286304863",
     "EnqueuedTime":"2019-08-14T04:29:25.2630000Z",
     "StreamId":null
-  }
 }
 ```
 

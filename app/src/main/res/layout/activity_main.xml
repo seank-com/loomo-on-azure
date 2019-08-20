@@ -16,7 +16,7 @@
         android:onClick="onClick"
         android:text="@string/reset"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/clear" />
+        app:layout_constraintTop_toBottomOf="@+id/move" />
 
     <ScrollView
         android:id="@+id/container"
@@ -49,13 +49,13 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/direction"
+        android:id="@+id/demo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
         android:onClick="onClick"
-        android:text="@string/direction_forward"
+        android:text="@string/demo"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/reset" />
 
@@ -68,7 +68,7 @@
         android:onClick="onClick"
         android:text="@string/move"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/direction" />
+        app:layout_constraintTop_toBottomOf="@+id/clear" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

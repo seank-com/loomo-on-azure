@@ -3,8 +3,13 @@
     <string name="clear">Clear</string>
     <string name="reset">Reset</string>
     <string name="move">Move</string>
-    <string name="direction_forward">FRWD</string>
-    <string name="direction_back">BACK</string>
-    <string name="direction_left">LEFT</string>
-    <string name="direction_right">RITE</string>
+    <string name="demo">Demo</string>
+    <string name="base">Base</string>
+    <string name="head">Head</string>
+    <string name="up">Up</string>
+    <string name="down">Down</string>
+    <string name="forward">Forward</string>
+    <string name="back">Back</string>
+    <string name="left">Left</string>
+    <string name="right">Right</string>
 </resources>
