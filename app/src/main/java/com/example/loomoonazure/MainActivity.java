@@ -4,6 +4,9 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -49,7 +52,12 @@ public class MainActivity extends AppCompatActivity {
     private DeviceClient client;
     private MessageCallback callback = new MessageCallback();
 
+    public static final String EXTRA_ROBOT = "com.example.loomoonazure.ROBOT";
+
     private Telemetry telemetry;
+
+    private LocationManager locationManager;
+    private Location lastLocation;
 
     TextView output;
     ScrollView container;
@@ -209,9 +217,38 @@ public class MainActivity extends AppCompatActivity {
         robotHead = Head.getInstance();
         robotSensor = Sensor.getInstance();
 
-        robotBase.bindService(getApplicationContext(), bindStateListenerBase);
-        robotHead.bindService(getApplicationContext(), bindStateListenerHead);
-        robotSensor.bindService(getApplicationContext(), bindStateListenerSensor);
+        robotBase.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.BASE));
+        robotHead.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.HEAD));
+        robotSensor.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.SENSOR));
+
+        locationManager = (LocationManager)getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 0, new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                lastLocation = location;
+               print("Got new location");
+            }
+
+            @Override
+            public void onStatusChanged(String s, int i, Bundle bundle) {
+               print("Status changed: " + s);
+            }
+
+            @Override
+            public void onProviderEnabled(String s) {
+               print("Provider Enabled: " + s);
+            }
+
+            @Override
+            public void onProviderDisabled(String s) {
+                print("Provider Disabled: " + s);
+            }
+        });
+        lastLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        if (lastLocation != null) {
+            print(lastLocation.toString());
+        }
+
         telemetry = new Telemetry(robotBase, robotHead, robotSensor);
 
         try {
