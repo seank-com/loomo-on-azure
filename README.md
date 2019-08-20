@@ -105,6 +105,8 @@ Loomo sends the following telemetry data to the cloud
 }
 ```
 
+For IoT Central properties need to be top-level (not nested). Fortunately, unknown properties are ignored, so if you want this robot to talk to IoT Central, you'll need to promote the properties that you would like access to. A meaningful sample in node can be found [here](https://docs.microsoft.com/en-us/azure/iot-central/howto-connect-nodejs#add-a-real-device). Don't forget these instructions to create a [connection string](https://docs.microsoft.com/en-us/azure/iot-central/tutorial-add-device#generate-the-connection-string).
+
 ## Cloud to Device messages
 
 Loomo can respond to messages from the cloud in the following form
