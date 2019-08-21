@@ -33,13 +33,6 @@ import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int FORWARD = 0;
-    private static final int BACK = 1;
-    private static final int LEFT = 2;
-    private static final int RIGHT = 3;
-
-    private int baseDirection = FORWARD;
-
     private Head robotHead;
     private Base robotBase;
     private Sensor robotSensor;
@@ -51,8 +44,6 @@ public class MainActivity extends AppCompatActivity {
     private boolean isConnected = false;
     private DeviceClient client;
     private MessageCallback callback = new MessageCallback();
-
-    public static final String EXTRA_ROBOT = "com.example.loomoonazure.ROBOT";
 
     private Telemetry telemetry;
 
@@ -295,13 +286,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onClick(View view) {
+        Intent intent = null;
         switch (view.getId()) {
+            case R.id.move:
+                intent = new Intent(this, MoveActivity.class);
+                startActivity(intent);
+                break;
+            case R.id.navigation:
+                intent = new Intent(this, NavigationActivity.class);
+                startActivity(intent);
+                break;
+            case R.id.vision:
+                intent = new Intent(this, VisionActivity.class);
+                startActivity(intent);
+                break;
+            case R.id.speech:
+                intent = new Intent(this, SpeechActivity.class);
+                startActivity(intent);
+                break;
             case R.id.clear:
                 output.setText("");
-                break;
-            case R.id.move:
-                Intent intent = new Intent(this, MoveActivity.class);
-                startActivity(intent);
                 break;
             case R.id.reset:
                 if (isBindBase) {
@@ -311,6 +315,8 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
             case R.id.demo:
+                intent = new Intent(this, DemoActivity.class);
+                startActivity(intent);
                 break;
         }
     }

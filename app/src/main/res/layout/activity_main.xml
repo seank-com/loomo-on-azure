@@ -11,21 +11,22 @@
         android:id="@+id/reset"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
+        android:layout_marginStart="16dp"
         android:onClick="onClick"
         android:text="@string/reset"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/move" />
+        app:layout_constraintBottom_toBottomOf="@+id/clear"
+        app:layout_constraintStart_toEndOf="@+id/clear"
+        app:layout_constraintTop_toTopOf="@+id/clear" />
 
     <ScrollView
         android:id="@+id/container"
-        android:layout_width="0dp"
-        android:layout_height="304dp"
+        android:layout_width="426dp"
+        android:layout_height="244dp"
         android:layout_marginEnd="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/reset"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/clear"
+        app:layout_constraintEnd_toStartOf="@+id/move"
+        app:layout_constraintStart_toStartOf="@+id/clear"
         app:layout_constraintTop_toTopOf="parent">
 
         <TextView
@@ -41,23 +42,23 @@
         android:id="@+id/clear"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginBottom="8dp"
         android:onClick="onClick"
         android:text="@string/clear"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <Button
         android:id="@+id/demo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
+        android:layout_marginStart="16dp"
         android:onClick="onClick"
         android:text="@string/demo"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/reset" />
+        app:layout_constraintBottom_toBottomOf="@+id/clear"
+        app:layout_constraintStart_toEndOf="@+id/reset"
+        app:layout_constraintTop_toTopOf="@+id/clear" />
 
     <Button
         android:id="@+id/move"
@@ -68,7 +69,40 @@
         android:onClick="onClick"
         android:text="@string/move"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/clear" />
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/navigation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:onClick="onClick"
+        android:text="@string/navigation"
+        app:layout_constraintEnd_toEndOf="@+id/move"
+        app:layout_constraintStart_toStartOf="@+id/move"
+        app:layout_constraintTop_toBottomOf="@+id/move" />
+
+    <Button
+        android:id="@+id/vision"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:onClick="onClick"
+        android:text="@string/vision"
+        app:layout_constraintEnd_toEndOf="@+id/move"
+        app:layout_constraintStart_toStartOf="@+id/move"
+        app:layout_constraintTop_toBottomOf="@+id/navigation" />
+
+    <Button
+        android:id="@+id/speech"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:onClick="onClick"
+        android:text="@string/speech"
+        app:layout_constraintEnd_toEndOf="@+id/vision"
+        app:layout_constraintStart_toStartOf="@+id/vision"
+        app:layout_constraintTop_toBottomOf="@+id/vision" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

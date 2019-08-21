@@ -2,8 +2,11 @@
     <string name="app_name">Loomo on Azure</string>
     <string name="clear">Clear</string>
     <string name="reset">Reset</string>
-    <string name="move">Move</string>
     <string name="demo">Demo</string>
+    <string name="move">Move</string>
+    <string name="navigation">Nav</string>
+    <string name="vision">Vision</string>
+    <string name="speech">Speech</string>
     <string name="base">Base</string>
     <string name="head">Head</string>
     <string name="up">Up</string>
