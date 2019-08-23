@@ -117,6 +117,19 @@ Loomo can respond to messages from the cloud in the following form
   "linear": 0, 
   "angular": 1
 }
+
+{
+  "type": "look",
+  "yaw": 1.5,
+  "pitch": 0.7
+}
+
+{
+  "type": "socket",
+  "address": "192.168.0.100",
+  "port": 9000,
+  "cadence": 1000
+}
 ```
 
 ## Current Issues

@@ -6,4 +6,73 @@
     android:layout_height="match_parent"
     tools:context=".NavigationActivity">
 
+    <Switch
+        android:id="@+id/vls"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:checked="false"
+        android:onClick="onVLSSwitch"
+        android:padding="8dp"
+        android:showText="false"
+        android:splitTrack="false"
+        android:switchPadding="16dp"
+        android:text="@string/vls"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/setStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:onClick="onSetStart"
+        android:text="@string/set_start"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/vls" />
+
+    <Button
+        android:id="@+id/setCheckpoint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:onClick="onSetCheckpoint"
+        android:text="@string/set_checkpoint"
+        app:layout_constraintStart_toEndOf="@+id/setStart"
+        app:layout_constraintTop_toBottomOf="@+id/vls" />
+
+    <Button
+        android:id="@+id/goToOrigin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:onClick="onGoToOrigin"
+        android:text="@string/goto_origin"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/setStart" />
+
+    <Button
+        android:id="@+id/run"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:onClick="onRun"
+        android:text="@string/run"
+        app:layout_constraintStart_toEndOf="@+id/goToOrigin"
+        app:layout_constraintTop_toBottomOf="@+id/setCheckpoint" />
+
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/goToOrigin" />
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -2,14 +2,15 @@ package com.example.loomoonazure;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -17,6 +18,7 @@ import com.microsoft.azure.sdk.iot.device.DeviceClient;
 import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
 import com.microsoft.azure.sdk.iot.device.IotHubMessageResult;
 import com.microsoft.azure.sdk.iot.device.Message;
+import com.microsoft.azure.sdk.iot.device.MessageCallback;
 import com.segway.robot.algo.Pose2D;
 import com.segway.robot.sdk.base.bind.ServiceBinder;
 import com.segway.robot.sdk.locomotion.head.Head;
@@ -27,90 +29,184 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.segway.robot.sdk.perception.sensor.Sensor;
 
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements LocationListener, MessageCallback {
 
-    private Head robotHead;
     private Base robotBase;
+    private Head robotHead;
     private Sensor robotSensor;
-    private boolean isBindHead = false;
     private boolean isBindBase = false;
+    private boolean isBindHead = false;
     private boolean isBindSensor = false;
 
     private final String connString = "[device connection string]";
     private boolean isConnected = false;
     private DeviceClient client;
-    private MessageCallback callback = new MessageCallback();
 
     private Telemetry telemetry;
 
-    private LocationManager locationManager;
     private Location lastLocation;
 
-    TextView output;
-    ScrollView container;
-    Button direction;
+    private RobotBroadcastReceiver broadcastReceiver;
 
-    Timer timer = null;
-    TimerTask timerTask = null;
+    private TextView output;
+    private TextView msgCount;
+    private ScrollView container;
 
-    public enum ServiceType {
-        BASE, HEAD, SENSOR
-    }
+    private int messages = 0;
+    private Timer timer = null;
+    private TimerTask timerTask = null;
+    private JsonParser parser = new JsonParser();
 
-    private void initRobot() {
-        // only schedule the timer when all services are bound
-        if (isBindHead && isBindBase && isBindSensor && isConnected) {
+    private Timer rocosTimer = null;
+    private TimerTask rocosTimerTask = null;
+    private Socket rocosSocket = null;
 
-            robotHead.resetOrientation();
-            robotHead.setMode(Head.MODE_SMOOTH_TACKING);
-            robotBase.setControlMode(Base.CONTROL_MODE_RAW);
+    private final String BATTERY_CHANGED = "com.segway.robot.action.BATTERY_CHANGED";
+    private final String POWER_DOWN = "com.segway.robot.action.POWER_DOWN";
+    private final String POWER_BUTTON_PRESSED = "com.segway.robot.action.POWER_BUTTON_PRESSED";
+    private final String POWER_BUTTON_RELEASED = "com.segway.robot.action.POWER_BUTTON_RELEASED";
+    private final String TO_SBV = "com.segway.robot.action.TO_SBV";
+    private final String TO_ROBOT = "com.segway.robot.action.TO_ROBOT";
+    private final String PITCH_LOCK = "com.segway.robot.action.PITCH_LOCK";
+    private final String PITCH_UNLOCK = "com.segway.robot.action.PITCH_UNLOCK";
+    private final String YAW_LOCK = "com.segway.robot.action.YAW_LOCK";
+    private final String YAW_UNLOCK = "com.segway.robot.action.YAW_UNLOCK";
+    private final String STEP_ON = "com.segway.robot.action.STEP_ON";
+    private final String STEP_OFF = "com.segway.robot.action.STEP_OFF";
+    private final String LIFT_UP = "com.segway.robot.action.LIFT_UP";
+    private final String PUT_DOWN = "com.segway.robot.action.PUT_DOWN";
+    private final String PUSHING = "com.segway.robot.action.PUSHING";
+    private final String PUSH_RELEASE = "com.segway.robot.action.PUSH_RELEASE";
+    private final String BASE_LOCK = "com.segway.robot.action.BASE_LOCK";
+    private final String BASE_UNLOCK = "com.segway.robot.action.BASE_UNLOCK";
+    private final String STAND_UP = "com.segway.robot.action.STAND_UP";
 
-            timer = new Timer();
-            timerTask = new TimerTask() {
-                @Override
-                public void run() {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (isBindHead && isBindBase && isConnected) {
-                                String msgStr = telemetry.getMessage();
-                                Message msg = new Message(msgStr);
-                                msg.setMessageId(UUID.randomUUID().toString());
-                                //print("Sending: " + msgStr);
-                                client.sendEventAsync(msg, null, null);
-                            }
-                        }
-                    });
-                }
-            };
+    // Unfortunately the BroadcastReceiver is not an interface
+    private class RobotBroadcastReceiver extends BroadcastReceiver {
+        private IntentFilter filter;
 
-            timer.schedule(timerTask, 5000, 5000);
+        public RobotBroadcastReceiver() {
+
+            filter = new IntentFilter();
+            filter.addAction(BATTERY_CHANGED);
+            filter.addAction(POWER_DOWN);
+            filter.addAction(POWER_BUTTON_PRESSED);
+            filter.addAction(POWER_BUTTON_RELEASED);
+            filter.addAction(TO_SBV);
+            filter.addAction(TO_ROBOT);
+            filter.addAction(PITCH_LOCK);
+            filter.addAction(PITCH_UNLOCK);
+            filter.addAction(YAW_LOCK);
+            filter.addAction(YAW_UNLOCK);
+            filter.addAction(STEP_ON);
+            filter.addAction(STEP_OFF);
+            filter.addAction(LIFT_UP);
+            filter.addAction(PUT_DOWN);
+            filter.addAction(PUSHING);
+            filter.addAction(PUSH_RELEASE);
+            filter.addAction(BASE_LOCK);
+            filter.addAction(BASE_UNLOCK);
+            filter.addAction(STAND_UP);
+        }
+
+        public IntentFilter getFilter() {
+            return filter;
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (intent.getAction()) {
+                case BATTERY_CHANGED:
+                    print("Received BATTERY_CHANGED");
+                    break;
+                case POWER_DOWN:
+                    print("Received POWER_DOWN");
+                    break;
+                case POWER_BUTTON_PRESSED:
+                    print("Received POWER_BUTTON_PRESSED");
+                    break;
+                case POWER_BUTTON_RELEASED:
+                    print("Received POWER_BUTTON_RELEASED");
+                    break;
+                case TO_SBV:
+                    print("Received TO_SBV");
+                    break;
+                case TO_ROBOT:
+                    print("Received TO_ROBOT");
+                    break;
+                case PITCH_LOCK:
+                    print("Received PITCH_LOCK");
+                    break;
+                case PITCH_UNLOCK:
+                    print("Received PITCH_UNLOCK");
+                    break;
+                case YAW_LOCK:
+                    print("Received YAW_LOCK");
+                    break;
+                case YAW_UNLOCK:
+                    print("Received YAW_UNLOCK");
+                    break;
+                case STEP_ON:
+                    print("Received STEP_ON");
+                    break;
+                case STEP_OFF:
+                    print("Received STEP_OFF");
+                    break;
+                case LIFT_UP:
+                    print("Received LIFT_UP");
+                    break;
+                case PUT_DOWN:
+                    print("Received PUT_DOWN");
+                    break;
+                case PUSHING:
+                    print("Received PUSHING");
+                    break;
+                case PUSH_RELEASE:
+                    print("Received PUSH_RELEASE");
+                    break;
+                case BASE_LOCK:
+                    print("Received BASE_LOCK");
+                    break;
+                case BASE_UNLOCK:
+                    print("Received BASE_UNLOCK");
+                    break;
+                case STAND_UP:
+                    print("Received STAND_UP");
+                    break;
+            }
         }
     }
 
-    class RobotBindStateListener implements ServiceBinder.BindStateListener {
+    private enum ServiceType {
+        BASE, HEAD, SENSOR
+    }
+
+    private class RobotBindStateListener implements ServiceBinder.BindStateListener {
+
         private ServiceType service;
 
-        public RobotBindStateListener(ServiceType service)
-        {
+        public RobotBindStateListener(ServiceType service) {
             this.service = service;
         }
 
         @Override
         public void onBind() {
             switch(service) {
-                case HEAD:
-                    print("Bind Head");
-                    isBindHead = true;
-                    initRobot();
-                    break;
                 case BASE:
                     print("Bind Base");
                     isBindBase = true;
+                    initRobot();
+                    break;
+                case HEAD:
+                    print("Bind Head");
+                    isBindHead = true;
                     initRobot();
                     break;
                 case SENSOR:
@@ -124,20 +220,156 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onUnbind(String reason) {
             switch(service) {
-                case HEAD:
-                    print("Unbind Head");
-                    isBindHead = false;
-                    break;
                 case BASE:
                     print("Unbind Base");
-                    isBindBase = false;
+                    break;
+                case HEAD:
+                    print("Unbind Head");
                     break;
                 case SENSOR:
                     print("Unbind Sensor");
-                    isBindSensor = false;
                     break;
             }
         }
+    }
+
+    private void initRobot() {
+        // only schedule the timer when all services are bound
+        if (isBindBase && isBindHead && isBindSensor && isConnected) {
+
+            print("Zeroing Robot");
+            robotHead.setMode(Head.MODE_SMOOTH_TACKING);
+            robotHead.resetOrientation();
+            robotBase.setControlMode(Base.CONTROL_MODE_RAW);
+
+            timer = new Timer();
+            timerTask = new TimerTask() {
+                @Override
+                public void run() {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (isBindBase && isBindHead && isBindSensor && isConnected) {
+                                String msgStr = telemetry.getMessage();
+                                Message msg = new Message(msgStr);
+                                msg.setMessageId(UUID.randomUUID().toString());
+                                messages += 1;
+                                updateMessageCount();
+                                client.sendEventAsync(msg, null, null);
+                            }
+                        }
+                    });
+                }
+            };
+
+            timer.schedule(timerTask, 5000, 5000);
+        }
+    }
+
+    private void establishRocosConnection(String server, int port, int cadence) {
+        if (rocosSocket == null) {
+            rocosSocket = new Socket();
+            new Thread()  {
+                @Override
+                public void run() {
+                    try {
+                        InetAddress serverAddr = InetAddress.getByName(server);
+                        rocosSocket = new Socket(serverAddr, port);
+                        print(String.format("Socket created to %s:%d", server, port));
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                    }
+
+                    rocosTimer = new Timer();
+                    rocosTimerTask = new TimerTask() {
+                        @Override
+                        public void run() {
+                            try {
+                                OutputStream out = rocosSocket.getOutputStream();
+                                JsonObject jo = new JsonObject();
+                                Pose2D pose = robotBase.getOdometryPose(-1);
+                                jo.addProperty("theta", pose.getTheta());
+                                jo.addProperty("x", pose.getX());
+                                jo.addProperty("y", pose.getY());
+                                out.write(jo.toString().getBytes());
+                            } catch(Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    };
+                    rocosTimer.schedule(rocosTimerTask, cadence, cadence);
+                }
+            }.start();
+        }
+    }
+
+    // Implement LocationListener
+    @Override
+    public void onLocationChanged(Location location) {
+        lastLocation = location;
+        print("Got new location: " + lastLocation.toString());
+    }
+
+    @Override
+    public void onStatusChanged(String s, int i, Bundle bundle) {
+        print("Status changed: " + s);
+    }
+
+    @Override
+    public void onProviderEnabled(String s) {
+        print("Provider Enabled: " + s);
+    }
+
+    @Override
+    public void onProviderDisabled(String s) {
+        print("Provider Disabled: " + s);
+    }
+
+    // Implement MessageCallback
+    @Override
+    public IotHubMessageResult execute(Message message, Object callbackContext) {
+        String strMsg = new String(message.getBytes());
+        JsonElement element = parser.parse(strMsg);
+
+        if (element.isJsonObject()) {
+            JsonObject command = element.getAsJsonObject();
+            if (command.has("type")) {
+                if (command.get("type").getAsString().equals("move")) {
+                    float linear = command.get("linear").getAsFloat();
+                    float angular = command.get("angular").getAsFloat();
+
+                    if (robotBase.isBind()) {
+                        robotBase.setLinearVelocity(linear);
+                        robotBase.setAngularVelocity(angular);
+                    }
+                }
+                else if (command.get("type").getAsString().equals("look")) {
+                    float yaw = command.get("yaw").getAsFloat();
+                    float pitch = command.get("pitch").getAsFloat();
+
+                    if (robotHead.isBind()) {
+                        robotHead.setWorldYaw(yaw);
+                        robotHead.setWorldPitch(pitch);
+                    }
+                }
+                else if (command.get("type").getAsString().equals("socket")) {
+                    String server = command.get("address").getAsString();
+                    int port = command.get("port").getAsInt();
+                    int cadence = command.get("cadence").getAsInt();
+                    establishRocosConnection(server, port, cadence);
+                }
+            }
+        }
+        return IotHubMessageResult.COMPLETE;
+    }
+
+    public void updateMessageCount() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                msgCount.setText(String.format("%d Msgs", messages));
+            }
+        });
     }
 
     public void print(String msg) {
@@ -154,44 +386,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    static class MessageCallback implements com.microsoft.azure.sdk.iot.device.MessageCallback
-    {
-        JsonParser parser = new JsonParser();
-
-        public IotHubMessageResult execute(Message msg, Object context) {
-            String strMsg = new String(msg.getBytes());
-            JsonElement element = parser.parse(strMsg);
-
-            if (element.isJsonObject()) {
-                JsonObject command = element.getAsJsonObject();
-                if (command.has("type")) {
-                    if (command.get("type").getAsString().equals("move")) {
-                        float linear = command.get("linear").getAsFloat();
-                        float angular = command.get("angular").getAsFloat();
-
-                        MainActivity main = (MainActivity)context;
-                        if (main.robotBase.isBind()) {
-                            main.robotBase.setLinearVelocity(linear);
-                            main.robotBase.setAngularVelocity(angular);
-                        }
-                    }
-                    else if (command.get("type").getAsString().equals("look")) {
-                        float yaw = command.get("yaw").getAsFloat();
-                        float pitch = command.get("pitchr").getAsFloat();
-
-                        MainActivity main = (MainActivity)context;
-                        if (main.robotHead.isBind()) {
-                            main.robotHead.setWorldYaw(yaw);
-                            main.robotHead.setWorldPitch(pitch);
-                        }
-                    }
-
-                }
-            }
-            return IotHubMessageResult.COMPLETE;
-        }
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -199,10 +393,10 @@ public class MainActivity extends AppCompatActivity {
 
         output = (TextView)findViewById(R.id.output);
         container = (ScrollView)findViewById(R.id.container);
-        direction = (Button)findViewById(R.id.demo);
+        msgCount = (TextView)findViewById(R.id.msgCount);
 
         output.setText("");
-        print("onCreate");
+        print("\n\nonCreate");
 
         robotBase = Base.getInstance();
         robotHead = Head.getInstance();
@@ -212,40 +406,22 @@ public class MainActivity extends AppCompatActivity {
         robotHead.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.HEAD));
         robotSensor.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.SENSOR));
 
-        locationManager = (LocationManager)getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 0, new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                lastLocation = location;
-               print("Got new location");
-            }
-
-            @Override
-            public void onStatusChanged(String s, int i, Bundle bundle) {
-               print("Status changed: " + s);
-            }
-
-            @Override
-            public void onProviderEnabled(String s) {
-               print("Provider Enabled: " + s);
-            }
-
-            @Override
-            public void onProviderDisabled(String s) {
-                print("Provider Disabled: " + s);
-            }
-        });
+        LocationManager locationManager = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 0, this);
         lastLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
         if (lastLocation != null) {
             print(lastLocation.toString());
         }
+
+        broadcastReceiver = new RobotBroadcastReceiver();
+        getApplicationContext().registerReceiver(broadcastReceiver, broadcastReceiver.getFilter());
 
         telemetry = new Telemetry(robotBase, robotHead, robotSensor);
 
         try {
             client = new DeviceClient(connString, IotHubClientProtocol.MQTT);
             client.open();
-            client.setMessageCallback(callback, this);
+            client.setMessageCallback(this, null);
             isConnected = true;
             print("Connected to IoTHub");
             initRobot();
@@ -265,6 +441,7 @@ public class MainActivity extends AppCompatActivity {
 
         print("onDestroy");
 
+        getApplicationContext().unregisterReceiver(broadcastReceiver);
         robotHead.unbindService();
         robotBase.unbindService();
         robotSensor.unbindService();
@@ -308,7 +485,7 @@ public class MainActivity extends AppCompatActivity {
                 output.setText("");
                 break;
             case R.id.reset:
-                if (isBindBase) {
+                if (robotBase.isBind()) {
                     robotBase.cleanOriginalPoint();
                     Pose2D pose2D = robotBase.getOdometryPose(-1);
                     robotBase.setOriginalPoint(pose2D);
