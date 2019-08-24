@@ -134,7 +134,7 @@ public class MoveActivity extends AppCompatActivity {
             theta = odometryPose.getTheta();
         }
         if (robotHead.isBind()) {
-            yaw = robotHead.getWorldYaw().getAngle();
+            yaw = robotHead.getHeadJointYaw().getAngle();
             pitch = robotHead.getWorldPitch().getAngle();
         }
 

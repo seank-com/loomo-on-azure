@@ -166,6 +166,7 @@ public class NavigationActivity extends AppCompatActivity implements StartVLSLis
     public void onCheckPointArrived(CheckPoint checkPoint, Pose2D realPose, boolean isLast) {
         setStatus(String.format("Arrived at (%f, %f, %f)", checkPoint.getX(), checkPoint.getY(), checkPoint.getOrientation()));
         if (step == -1 || step == checkpoints.size()) {
+            robotBase.clearCheckPointsAndStop();
             enableUI(true);
         } else {
             robotBase.clearCheckPointsAndStop();

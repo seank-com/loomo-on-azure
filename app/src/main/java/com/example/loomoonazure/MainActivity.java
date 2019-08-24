@@ -11,6 +11,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -28,6 +29,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.segway.robot.sdk.perception.sensor.Sensor;
+import com.segway.robot.sdk.vision.Vision;
+import com.segway.robot.sdk.voice.Recognizer;
+import com.segway.robot.sdk.voice.Speaker;
 
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -41,9 +45,15 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     private Base robotBase;
     private Head robotHead;
     private Sensor robotSensor;
+    private Vision robotVision;
+    private Recognizer robotRecognizer;
+    private Speaker robotSpeaker;
     private boolean isBindBase = false;
     private boolean isBindHead = false;
     private boolean isBindSensor = false;
+    private boolean isBindVision = false;
+    private boolean isBindRecognizer = false;
+    private boolean isBindSpeaker = false;
 
     private final String connString = "[device connection string]";
     private boolean isConnected = false;
@@ -55,6 +65,12 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
     private RobotBroadcastReceiver broadcastReceiver;
 
+    private Button move;
+    private Button navigation;
+    private Button vision;
+    private Button speech;
+    private Button reset;
+    private Button demo;
     private TextView output;
     private TextView msgCount;
     private ScrollView container;
@@ -185,7 +201,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     }
 
     private enum ServiceType {
-        BASE, HEAD, SENSOR
+        BASE, HEAD, SENSOR, VISION, RECOGNIZER, SPEAKER
     }
 
     private class RobotBindStateListener implements ServiceBinder.BindStateListener {
@@ -214,6 +230,21 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                     isBindSensor = true;
                     initRobot();
                     break;
+                case VISION:
+                    print("Bind Vision");
+                    isBindVision = true;
+                    initRobot();
+                    break;
+                case RECOGNIZER:
+                    print("Bind Recognizer");
+                    isBindRecognizer = true;
+                    initRobot();
+                    break;
+                case SPEAKER:
+                    print("Bind Speaker");
+                    isBindSpeaker = true;
+                    initRobot();
+                    break;
             }
         }
 
@@ -222,12 +253,27 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             switch(service) {
                 case BASE:
                     print("Unbind Base");
+                    isBindBase = false;
                     break;
                 case HEAD:
                     print("Unbind Head");
+                    isBindHead = false;
                     break;
                 case SENSOR:
                     print("Unbind Sensor");
+                    isBindSensor = false;
+                    break;
+                case VISION:
+                    print("Unbind Vision");
+                    isBindVision = false;
+                    break;
+                case RECOGNIZER:
+                    print("Unbind Recognizer");
+                    isBindRecognizer = false;
+                    break;
+                case SPEAKER:
+                    print("Unbind Speaker");
+                    isBindSpeaker = false;
                     break;
             }
         }
@@ -235,7 +281,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
     private void initRobot() {
         // only schedule the timer when all services are bound
-        if (isBindBase && isBindHead && isBindSensor && isConnected) {
+        if (isBindBase && isBindHead && isBindSensor &&
+            isBindVision && isBindRecognizer && isBindSpeaker &&
+            isConnected) {
 
             print("Zeroing Robot");
             robotHead.setMode(Head.MODE_SMOOTH_TACKING);
@@ -263,10 +311,21 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             };
 
             timer.schedule(timerTask, 5000, 5000);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    move.setEnabled(true);
+                    navigation.setEnabled(true);
+                    vision.setEnabled(true);
+                    speech.setEnabled(true);
+                    reset.setEnabled(true);
+                    demo.setEnabled(true);
+                }
+            });
         }
     }
 
-    private void establishRocosConnection(String server, int port, int cadence) {
+    private void establishSocketConnection(String server, int port, int cadence) {
         if (rocosSocket == null) {
             rocosSocket = new Socket();
             new Thread()  {
@@ -356,7 +415,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                     String server = command.get("address").getAsString();
                     int port = command.get("port").getAsInt();
                     int cadence = command.get("cadence").getAsInt();
-                    establishRocosConnection(server, port, cadence);
+                    establishSocketConnection(server, port, cadence);
                 }
             }
         }
@@ -391,10 +450,22 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        move = (Button)findViewById(R.id.move);
+        navigation = (Button)findViewById(R.id.navigation);
+        vision = (Button)findViewById(R.id.vision);
+        speech = (Button)findViewById(R.id.speech);
+        reset = (Button)findViewById(R.id.reset);
+        demo = (Button)findViewById(R.id.demo);
         output = (TextView)findViewById(R.id.output);
         container = (ScrollView)findViewById(R.id.container);
         msgCount = (TextView)findViewById(R.id.msgCount);
 
+        move.setEnabled(false);
+        navigation.setEnabled(false);
+        vision.setEnabled(false);
+        speech.setEnabled(false);
+        reset.setEnabled(false);
+        demo.setEnabled(false);
         output.setText("");
         print("\n\nonCreate");
 
@@ -405,6 +476,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         robotBase.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.BASE));
         robotHead.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.HEAD));
         robotSensor.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.SENSOR));
+        robotVision.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.VISION));
+        robotRecognizer.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.RECOGNIZER));
+        robotSpeaker.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.SPEAKER));
 
         LocationManager locationManager = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 0, this);
@@ -485,7 +559,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                 output.setText("");
                 break;
             case R.id.reset:
-                if (robotBase.isBind()) {
+                if (isBindBase) {
                     robotBase.cleanOriginalPoint();
                     Pose2D pose2D = robotBase.getOdometryPose(-1);
                     robotBase.setOriginalPoint(pose2D);

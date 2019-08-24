@@ -2,8 +2,10 @@ package com.example.loomoonazure;
 
 import com.segway.robot.algo.Pose2D;
 import com.segway.robot.algo.PoseVLS;
+import com.segway.robot.algo.tf.AlgoTfData;
 import com.segway.robot.sdk.locomotion.head.Head;
 //import com.segway.robot.sdk.locomotion.sbv.AngularVelocity;
+import com.segway.robot.sdk.locomotion.sbv.AngularVelocity;
 import com.segway.robot.sdk.locomotion.sbv.Base;
 //import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -11,6 +13,7 @@ import com.google.gson.JsonObject;
 import com.segway.robot.sdk.locomotion.sbv.BasePose;
 import com.segway.robot.sdk.locomotion.sbv.BaseTicks;
 import com.segway.robot.sdk.locomotion.sbv.BaseWheelInfo;
+import com.segway.robot.sdk.locomotion.sbv.LinearVelocity;
 import com.segway.robot.sdk.perception.sensor.InfraredData;
 import com.segway.robot.sdk.perception.sensor.RobotAllSensors;
 import com.segway.robot.sdk.perception.sensor.Sensor;
@@ -37,9 +40,12 @@ class Telemetry {
         }
 
         JsonObject base = new JsonObject();
+        AngularVelocity angularVelocity = robotBase.getAngularVelocity();
+        LinearVelocity linearVelocity = robotBase.getLinearVelocity();
+
         if (robotBase.isVLSStarted()) {
             JsonObject pose = new JsonObject();
-            PoseVLS vlsPose = robotBase.getVLSPose(-1);
+            PoseVLS vlsPose = robotBase.getVLSPose(linearVelocity.getTimestamp());
             pose.addProperty("PathLengthSinceLastRelocation", vlsPose.getPathLengthSinceLastRelocation());
             pose.addProperty("PathLengthSinceStart", vlsPose.getPathLengthSinceStart());
             pose.addProperty("UncertaintyInPercentage", vlsPose.getUncertaintyInPercentage());
@@ -53,7 +59,7 @@ class Telemetry {
 
         } else {
             JsonObject pose = new JsonObject();
-            Pose2D odometryPose = robotBase.getOdometryPose(-1);
+            Pose2D odometryPose = robotBase.getOdometryPose(linearVelocity.getTimestamp());
             pose.addProperty("AngularVelocity", odometryPose.getAngularVelocity());
             pose.addProperty("LinearVelocity", odometryPose.getLinearVelocity());
             pose.addProperty("Theta", odometryPose.getTheta());
@@ -62,12 +68,12 @@ class Telemetry {
             base.add("OdometryPose", pose);
         }
 
-        base.addProperty("AngularVelocity", robotBase.getAngularVelocity().getSpeed());
+        base.addProperty("AngularVelocity", angularVelocity.getSpeed());
         base.addProperty("AngularVelocityLimit", robotBase.getAngularVelocityLimit());
         base.addProperty("CartMile", robotBase.getCartMile());
         base.addProperty("ControlMode", robotBase.getControlMode());
         base.addProperty("LightBrightness", robotBase.getLightBrightness());
-        base.addProperty("LinearVelocity", robotBase.getLinearVelocity().getSpeed());
+        base.addProperty("LinearVelocity", linearVelocity.getSpeed());
         base.addProperty("LinearVelocityLimit", robotBase.getLinearVelocityLimit());
         base.addProperty("Mileage", robotBase.getMileage());
         base.addProperty("RidingSpeedLimit", robotBase.getRidingSpeedLimit());
@@ -154,6 +160,17 @@ class Telemetry {
         pose.addProperty("X", pose2D.getX());
         pose.addProperty("Y", pose2D.getY());
         sensor.add("Pose2D", pose);
+
+        AlgoTfData tfBase = robotSensor.getTfData(Sensor.WORLD_ODOM_ORIGIN, Sensor.BASE_ODOM_FRAME, pose2D.getTimestamp(), 100);
+        AlgoTfData tfHead = robotSensor.getTfData(Sensor.WORLD_ODOM_ORIGIN, Sensor.HEAD_POSE_P_R_FRAME, pose2D.getTimestamp(), 100);
+
+        JsonObject frame = new JsonObject();
+        frame.addProperty("BaseX", tfBase.t.x);
+        frame.addProperty("BaseY", tfBase.t.y);
+        frame.addProperty( "BaseTheta", tfBase.q.getYawRad());
+        frame.addProperty("HeadYaw", tfHead.q.getYawRad());
+        frame.addProperty("HeadPitch", tfHead.q.getPitchRad());
+        sensor.add("Frame", frame);
 
         sensor.addProperty("UltrasonicDistance", robotAllSensors.getUltrasonicData().getDistance());
         telemetry.add("Sensor", sensor);
