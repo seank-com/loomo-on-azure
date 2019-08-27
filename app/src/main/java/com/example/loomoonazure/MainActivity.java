@@ -472,6 +472,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         robotBase = Base.getInstance();
         robotHead = Head.getInstance();
         robotSensor = Sensor.getInstance();
+        robotVision = Vision.getInstance();
+        robotRecognizer = Recognizer.getInstance();
+        robotSpeaker = Speaker.getInstance();
 
         robotBase.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.BASE));
         robotHead.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.HEAD));
@@ -519,6 +522,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         robotHead.unbindService();
         robotBase.unbindService();
         robotSensor.unbindService();
+        robotVision.unbindService();
+        robotRecognizer.unbindService();
+        robotSpeaker.unbindService();
+
         isConnected = false;
         try {
             client.closeNow();
