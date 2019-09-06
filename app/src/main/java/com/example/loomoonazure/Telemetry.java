@@ -3,13 +3,11 @@ package com.example.loomoonazure;
 import com.segway.robot.algo.Pose2D;
 import com.segway.robot.algo.PoseVLS;
 import com.segway.robot.algo.tf.AlgoTfData;
+import com.segway.robot.sdk.locomotion.head.Angle;
 import com.segway.robot.sdk.locomotion.head.Head;
-//import com.segway.robot.sdk.locomotion.sbv.AngularVelocity;
 import com.segway.robot.sdk.locomotion.sbv.AngularVelocity;
 import com.segway.robot.sdk.locomotion.sbv.Base;
-//import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-//import com.google.gson.JsonParser;
 import com.segway.robot.sdk.locomotion.sbv.BasePose;
 import com.segway.robot.sdk.locomotion.sbv.BaseTicks;
 import com.segway.robot.sdk.locomotion.sbv.BaseWheelInfo;
@@ -17,7 +15,6 @@ import com.segway.robot.sdk.locomotion.sbv.LinearVelocity;
 import com.segway.robot.sdk.perception.sensor.InfraredData;
 import com.segway.robot.sdk.perception.sensor.RobotAllSensors;
 import com.segway.robot.sdk.perception.sensor.Sensor;
-import com.segway.robot.sdk.perception.sensor.UltrasonicData;
 
 class Telemetry {
 
@@ -142,9 +139,15 @@ class Telemetry {
         sensor.addProperty("HeadJointPitch", robotAllSensors.getHeadJointPitch().getAngle());
         sensor.addProperty("HeadJointRoll", robotAllSensors.getHeadJointRoll().getAngle());
 
-        sensor.addProperty("HeadWorldYaw", robotAllSensors.getHeadWorldYaw().getAngle());
-        sensor.addProperty("HeadWorldPitch", robotAllSensors.getHeadWorldPitch().getAngle());
-        sensor.addProperty("HeadWorldRoll", robotAllSensors.getHeadWorldRoll().getAngle());
+        Angle headYaw = robotAllSensors.getHeadWorldYaw();
+        Angle headPitch = robotAllSensors.getHeadWorldPitch();
+        Angle headRoll = robotAllSensors.getHeadWorldRoll();
+        sensor.addProperty("HeadWorldYaw", headYaw.getAngle());
+        sensor.addProperty("HeadWorldYawTimestamp", headYaw.getTimestamp());
+        sensor.addProperty("HeadWorldPitch", headPitch.getAngle());
+        sensor.addProperty("HeadWorldPitchTimestamp", headPitch.getTimestamp());
+        sensor.addProperty("HeadWorldRoll", headRoll.getAngle());
+        sensor.addProperty("HeadWorldRollTimestamp", headRoll.getTimestamp());
 
         InfraredData infraredData = robotAllSensors.getInfraredData();
         JsonObject data = new JsonObject();
@@ -161,15 +164,17 @@ class Telemetry {
         pose.addProperty("Y", pose2D.getY());
         sensor.add("Pose2D", pose);
 
-        AlgoTfData tfBase = robotSensor.getTfData(Sensor.WORLD_ODOM_ORIGIN, Sensor.BASE_ODOM_FRAME, pose2D.getTimestamp(), 100);
-        AlgoTfData tfHead = robotSensor.getTfData(Sensor.WORLD_ODOM_ORIGIN, Sensor.HEAD_POSE_P_R_FRAME, pose2D.getTimestamp(), 100);
+        AlgoTfData tfBase = robotSensor.getTfData(Sensor.BASE_ODOM_FRAME, Sensor.WORLD_ODOM_ORIGIN, pose2D.getTimestamp(), 100);
+        AlgoTfData tfHead = robotSensor.getTfData(Sensor.HEAD_POSE_P_R_FRAME, Sensor.WORLD_ODOM_ORIGIN, headYaw.getTimestamp(), 100);
 
         JsonObject frame = new JsonObject();
         frame.addProperty("BaseX", tfBase.t.x);
         frame.addProperty("BaseY", tfBase.t.y);
-        frame.addProperty( "BaseTheta", tfBase.q.getYawRad());
+        frame.addProperty("BaseTheta", tfBase.q.getYawRad());
+        frame.addProperty("BaseErrCode", tfBase.err_code);
         frame.addProperty("HeadYaw", tfHead.q.getYawRad());
         frame.addProperty("HeadPitch", tfHead.q.getPitchRad());
+        frame.addProperty("HeadErrCode", tfHead.err_code);
         sensor.add("Frame", frame);
 
         sensor.addProperty("UltrasonicDistance", robotAllSensors.getUltrasonicData().getDistance());

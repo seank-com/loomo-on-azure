@@ -206,8 +206,8 @@ public class VisionActivity extends AppCompatActivity implements TextureView.Sur
         // The correct distance is between 0.35 meters and 5 meters
         if (personDistance > 0.35 && personDistance < 5) {
             float followDistance = (float) (personDistance - 1.2);
-            float theta = person.getTheta();
-            robotBase.updateTarget(followDistance, theta);
+            float followTheta = person.getTheta();
+            robotBase.updateTarget(followDistance, followTheta);
         }
     }
 

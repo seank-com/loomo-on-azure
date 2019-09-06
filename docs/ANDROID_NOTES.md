@@ -21,5 +21,5 @@ runOnUiThread(new Runnable() {
 });
 ```
 
-https://docs.oracle.com/javase/tutorial/java/TOC.html
+
  

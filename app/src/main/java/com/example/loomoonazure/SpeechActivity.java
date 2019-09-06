@@ -3,6 +3,7 @@ package com.example.loomoonazure;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+import android.widget.TextView;
 
 import com.segway.robot.sdk.voice.Languages;
 import com.segway.robot.sdk.voice.Recognizer;
@@ -19,11 +20,23 @@ public class SpeechActivity extends AppCompatActivity implements WakeupListener,
 
     private Recognizer robotRecognizer;
     private Speaker robotSpeaker;
+    private TextView heard;
+
+    private void updateHeard(String text) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                heard.setText(text);
+            }
+        });
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_speech);
+
+        heard = (TextView)findViewById(R.id.heard);
 
         robotRecognizer = Recognizer.getInstance();
         robotSpeaker = Speaker.getInstance();
@@ -87,6 +100,7 @@ public class SpeechActivity extends AppCompatActivity implements WakeupListener,
     @Override
     public boolean onRecognitionResult(RecognitionResult recognitionResult) {
         String result = recognitionResult.getRecognitionResult();
+        updateHeard(result);
 
         try {
             if (result.contains("say") || result.contains("tell")) {
@@ -127,6 +141,7 @@ public class SpeechActivity extends AppCompatActivity implements WakeupListener,
 
     @Override
     public boolean onRecognitionError(String error) {
+        updateHeard(error);
         return false;
     }
 
@@ -138,12 +153,12 @@ public class SpeechActivity extends AppCompatActivity implements WakeupListener,
 
     @Override
     public void onWakeupResult(WakeupResult wakeupResult) {
-
+        updateHeard(wakeupResult.getResult() + " Angle:" + wakeupResult.getAngle());
     }
 
     @Override
     public void onWakeupError(String error) {
-
+        updateHeard(error);
     }
 
     // TtsListener
