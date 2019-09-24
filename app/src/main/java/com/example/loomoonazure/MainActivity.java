@@ -67,7 +67,6 @@ public class MainActivity
     private static final int SERVICE_BIND_SPEAKER = 9;
     private static final int SERVICE_UNBIND_SPEAKER = 10;
 
-    private final String connString = "[device connection string]";
     private Vision robotVision;
     private boolean isBindVision = false;
     private static final int SERVICE_BIND_VISION = 11;
@@ -81,6 +80,7 @@ public class MainActivity
     private AzureIoT connection;
     private TeleOps teleops;
     private boolean isIoTCentral = true;
+    private final String connString = "[device connection string]";
     private static final int CONNECTION_OPEN = 15;
     private static final int CONNECTION_CLOSED = 16;
     private boolean isConnected = false;
