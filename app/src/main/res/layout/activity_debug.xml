@@ -4,10 +4,4 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
-    <com.segway.robot.sdk.emoji.EmojiView
-        android:id="@+id/face"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-    </com.segway.robot.sdk.emoji.EmojiView>
-</androidx.constraintlayout.widget.ConstraintLayout>
+    tools:context=".DebugActivity"/>

@@ -1,581 +1,761 @@
 package com.example.loomoonazure;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
 import android.view.View;
-import android.widget.Button;
-import android.widget.ScrollView;
-import android.widget.TextView;
+import android.view.Window;
+import android.view.WindowManager;
 
-import com.microsoft.azure.sdk.iot.device.DeviceClient;
-import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
-import com.microsoft.azure.sdk.iot.device.IotHubMessageResult;
-import com.microsoft.azure.sdk.iot.device.Message;
-import com.microsoft.azure.sdk.iot.device.MessageCallback;
-import com.segway.robot.algo.Pose2D;
-import com.segway.robot.sdk.base.bind.ServiceBinder;
+import com.example.loomoonazure.util.AzureIoT;
+import com.example.loomoonazure.util.MessageFromBindState;
+import com.example.loomoonazure.util.Robot;
+import com.example.loomoonazure.util.RobotAction;
+import com.example.loomoonazure.util.RobotConversation;
+import com.example.loomoonazure.util.RobotTracking;
+import com.example.loomoonazure.util.TeleOps;
+import com.example.loomoonazure.util.Telemetry;
+import com.segway.robot.sdk.emoji.BaseControlHandler;
+import com.segway.robot.sdk.emoji.Emoji;
+import com.segway.robot.sdk.emoji.EmojiPlayListener;
+import com.segway.robot.sdk.emoji.EmojiView;
+import com.segway.robot.sdk.emoji.HeadControlHandler;
+import com.segway.robot.sdk.emoji.player.RobotAnimator;
+import com.segway.robot.sdk.emoji.player.RobotAnimatorFactory;
 import com.segway.robot.sdk.locomotion.head.Head;
 import com.segway.robot.sdk.locomotion.sbv.Base;
-
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.segway.robot.sdk.perception.sensor.Sensor;
 import com.segway.robot.sdk.vision.Vision;
 import com.segway.robot.sdk.voice.Recognizer;
 import com.segway.robot.sdk.voice.Speaker;
 
-import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.UUID;
+import java.util.LinkedList;
 
-public class MainActivity extends AppCompatActivity implements LocationListener, MessageCallback {
+public class MainActivity
+        extends AppCompatActivity
+        implements Handler.Callback, View.OnClickListener, EmojiPlayListener, BaseControlHandler, HeadControlHandler, RobotTracking.BaseControlHandler, RobotTracking.HeadControlHandler, Robot {
+    private static final String TAG = "MainActivity";
 
     private Base robotBase;
-    private Head robotHead;
-    private Sensor robotSensor;
-    private Vision robotVision;
-    private Recognizer robotRecognizer;
-    private Speaker robotSpeaker;
     private boolean isBindBase = false;
+    private static final int SERVICE_BIND_BASE = 1;
+    private static final int SERVICE_UNBIND_BASE = 2;
+
+    private Head robotHead;
     private boolean isBindHead = false;
-    private boolean isBindSensor = false;
-    private boolean isBindVision = false;
+    private static final int SERVICE_BIND_HEAD = 3;
+    private static final int SERVICE_UNBIND_HEAD = 4;
+
+    private Recognizer robotRecognizer;
     private boolean isBindRecognizer = false;
+    private static final int SERVICE_BIND_RECOGNIZER = 5;
+    private static final int SERVICE_UNBIND_RECOGNIZER = 6;
+
+    private Sensor robotSensor;
+    private boolean isBindSensor = false;
+    private static final int SERVICE_BIND_SENSOR = 7;
+    private static final int SERVICE_UNBIND_SENSOR = 8;
+
+    private Speaker robotSpeaker;
     private boolean isBindSpeaker = false;
+    private static final int SERVICE_BIND_SPEAKER = 9;
+    private static final int SERVICE_UNBIND_SPEAKER = 10;
 
     private final String connString = "[device connection string]";
-    private boolean isConnected = false;
-    private DeviceClient client;
+    private Vision robotVision;
+    private boolean isBindVision = false;
+    private static final int SERVICE_BIND_VISION = 11;
+    private static final int SERVICE_UNBIND_VISION = 12;
+
+    private Emoji robotEmoji;
+    private EmojiView emojiView;
 
     private Telemetry telemetry;
 
-    private Location lastLocation;
+    private AzureIoT connection;
+    private TeleOps teleops;
+    private boolean isIoTCentral = true;
+    private static final int CONNECTION_OPEN = 15;
+    private static final int CONNECTION_CLOSED = 16;
+    private boolean isConnected = false;
 
-    private RobotBroadcastReceiver broadcastReceiver;
+    private static final int ACTION_SEND_TELEMETRY = 17;
+    private static final int ACTION_SEND_STATE = 13;
+    private static final int ACTION_SEND_LOCATION = 14;
 
-    private Button move;
-    private Button navigation;
-    private Button vision;
-    private Button speech;
-    private Button reset;
-    private Button demo;
-    private TextView output;
-    private TextView msgCount;
-    private ScrollView container;
+    private static final int ACTION_BEHAVE = 18;
+    private static final int ACTION_MOVE = 19;
+    private static final int ACTION_LOOK = 20;
 
+    private RobotConversation robotConversation;
+    private RobotTracking robotTracking;
+
+    private Handler handler;
+
+    private int cadence = 5;
+    private int timeout = 0;
+
+    private Location lastLocation = null;
+    private String lastState = "";
+
+    private int peopleDetected = 0;
     private int messages = 0;
-    private Timer timer = null;
-    private TimerTask timerTask = null;
-    private JsonParser parser = new JsonParser();
+    private boolean debug = true;
 
-    private Timer rocosTimer = null;
-    private TimerTask rocosTimerTask = null;
-    private Socket rocosSocket = null;
+    private boolean intro = false;
 
-    private final String BATTERY_CHANGED = "com.segway.robot.action.BATTERY_CHANGED";
-    private final String POWER_DOWN = "com.segway.robot.action.POWER_DOWN";
-    private final String POWER_BUTTON_PRESSED = "com.segway.robot.action.POWER_BUTTON_PRESSED";
-    private final String POWER_BUTTON_RELEASED = "com.segway.robot.action.POWER_BUTTON_RELEASED";
-    private final String TO_SBV = "com.segway.robot.action.TO_SBV";
-    private final String TO_ROBOT = "com.segway.robot.action.TO_ROBOT";
-    private final String PITCH_LOCK = "com.segway.robot.action.PITCH_LOCK";
-    private final String PITCH_UNLOCK = "com.segway.robot.action.PITCH_UNLOCK";
-    private final String YAW_LOCK = "com.segway.robot.action.YAW_LOCK";
-    private final String YAW_UNLOCK = "com.segway.robot.action.YAW_UNLOCK";
-    private final String STEP_ON = "com.segway.robot.action.STEP_ON";
-    private final String STEP_OFF = "com.segway.robot.action.STEP_OFF";
-    private final String LIFT_UP = "com.segway.robot.action.LIFT_UP";
-    private final String PUT_DOWN = "com.segway.robot.action.PUT_DOWN";
-    private final String PUSHING = "com.segway.robot.action.PUSHING";
-    private final String PUSH_RELEASE = "com.segway.robot.action.PUSH_RELEASE";
-    private final String BASE_LOCK = "com.segway.robot.action.BASE_LOCK";
-    private final String BASE_UNLOCK = "com.segway.robot.action.BASE_UNLOCK";
-    private final String STAND_UP = "com.segway.robot.action.STAND_UP";
+    RobotAction currentAction = null;
+    RobotAction resumeAction = null;
 
-    // Unfortunately the BroadcastReceiver is not an interface
-    private class RobotBroadcastReceiver extends BroadcastReceiver {
-        private IntentFilter filter;
-
-        public RobotBroadcastReceiver() {
-
-            filter = new IntentFilter();
-            filter.addAction(BATTERY_CHANGED);
-            filter.addAction(POWER_DOWN);
-            filter.addAction(POWER_BUTTON_PRESSED);
-            filter.addAction(POWER_BUTTON_RELEASED);
-            filter.addAction(TO_SBV);
-            filter.addAction(TO_ROBOT);
-            filter.addAction(PITCH_LOCK);
-            filter.addAction(PITCH_UNLOCK);
-            filter.addAction(YAW_LOCK);
-            filter.addAction(YAW_UNLOCK);
-            filter.addAction(STEP_ON);
-            filter.addAction(STEP_OFF);
-            filter.addAction(LIFT_UP);
-            filter.addAction(PUT_DOWN);
-            filter.addAction(PUSHING);
-            filter.addAction(PUSH_RELEASE);
-            filter.addAction(BASE_LOCK);
-            filter.addAction(BASE_UNLOCK);
-            filter.addAction(STAND_UP);
-        }
-
-        public IntentFilter getFilter() {
-            return filter;
-        }
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            switch (intent.getAction()) {
-                case BATTERY_CHANGED:
-                    print("Received BATTERY_CHANGED");
-                    break;
-                case POWER_DOWN:
-                    print("Received POWER_DOWN");
-                    break;
-                case POWER_BUTTON_PRESSED:
-                    print("Received POWER_BUTTON_PRESSED");
-                    break;
-                case POWER_BUTTON_RELEASED:
-                    print("Received POWER_BUTTON_RELEASED");
-                    break;
-                case TO_SBV:
-                    print("Received TO_SBV");
-                    break;
-                case TO_ROBOT:
-                    print("Received TO_ROBOT");
-                    break;
-                case PITCH_LOCK:
-                    print("Received PITCH_LOCK");
-                    break;
-                case PITCH_UNLOCK:
-                    print("Received PITCH_UNLOCK");
-                    break;
-                case YAW_LOCK:
-                    print("Received YAW_LOCK");
-                    break;
-                case YAW_UNLOCK:
-                    print("Received YAW_UNLOCK");
-                    break;
-                case STEP_ON:
-                    print("Received STEP_ON");
-                    break;
-                case STEP_OFF:
-                    print("Received STEP_OFF");
-                    break;
-                case LIFT_UP:
-                    print("Received LIFT_UP");
-                    break;
-                case PUT_DOWN:
-                    print("Received PUT_DOWN");
-                    break;
-                case PUSHING:
-                    print("Received PUSHING");
-                    break;
-                case PUSH_RELEASE:
-                    print("Received PUSH_RELEASE");
-                    break;
-                case BASE_LOCK:
-                    print("Received BASE_LOCK");
-                    break;
-                case BASE_UNLOCK:
-                    print("Received BASE_UNLOCK");
-                    break;
-                case STAND_UP:
-                    print("Received STAND_UP");
-                    break;
-            }
-        }
-    }
-
-    private enum ServiceType {
-        BASE, HEAD, SENSOR, VISION, RECOGNIZER, SPEAKER
-    }
-
-    private class RobotBindStateListener implements ServiceBinder.BindStateListener {
-
-        private ServiceType service;
-
-        public RobotBindStateListener(ServiceType service) {
-            this.service = service;
-        }
-
-        @Override
-        public void onBind() {
-            switch(service) {
-                case BASE:
-                    print("Bind Base");
-                    isBindBase = true;
-                    initRobot();
-                    break;
-                case HEAD:
-                    print("Bind Head");
-                    isBindHead = true;
-                    initRobot();
-                    break;
-                case SENSOR:
-                    print("Bind Sensor");
-                    isBindSensor = true;
-                    initRobot();
-                    break;
-                case VISION:
-                    print("Bind Vision");
-                    isBindVision = true;
-                    initRobot();
-                    break;
-                case RECOGNIZER:
-                    print("Bind Recognizer");
-                    isBindRecognizer = true;
-                    initRobot();
-                    break;
-                case SPEAKER:
-                    print("Bind Speaker");
-                    isBindSpeaker = true;
-                    initRobot();
-                    break;
-            }
-        }
-
-        @Override
-        public void onUnbind(String reason) {
-            switch(service) {
-                case BASE:
-                    print("Unbind Base");
-                    isBindBase = false;
-                    break;
-                case HEAD:
-                    print("Unbind Head");
-                    isBindHead = false;
-                    break;
-                case SENSOR:
-                    print("Unbind Sensor");
-                    isBindSensor = false;
-                    break;
-                case VISION:
-                    print("Unbind Vision");
-                    isBindVision = false;
-                    break;
-                case RECOGNIZER:
-                    print("Unbind Recognizer");
-                    isBindRecognizer = false;
-                    break;
-                case SPEAKER:
-                    print("Unbind Speaker");
-                    isBindSpeaker = false;
-                    break;
-            }
-        }
-    }
-
-    private void initRobot() {
-        // only schedule the timer when all services are bound
-        if (isBindBase && isBindHead && isBindSensor &&
-            isBindVision && isBindRecognizer && isBindSpeaker &&
-            isConnected) {
-
-            print("Zeroing Robot");
-            robotHead.setMode(Head.MODE_SMOOTH_TACKING);
-            robotHead.resetOrientation();
-            robotBase.setControlMode(Base.CONTROL_MODE_RAW);
-
-            timer = new Timer();
-            timerTask = new TimerTask() {
-                @Override
-                public void run() {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (isBindBase && isBindHead && isBindSensor && isConnected) {
-                                String msgStr = telemetry.getMessage();
-                                Message msg = new Message(msgStr);
-                                msg.setMessageId(UUID.randomUUID().toString());
-                                messages += 1;
-                                updateMessageCount();
-                                client.sendEventAsync(msg, null, null);
-                            }
-                        }
-                    });
-                }
-            };
-
-            timer.schedule(timerTask, 5000, 5000);
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    move.setEnabled(true);
-                    navigation.setEnabled(true);
-                    vision.setEnabled(true);
-                    speech.setEnabled(true);
-                    reset.setEnabled(true);
-                    demo.setEnabled(true);
-                }
-            });
-        }
-    }
-
-    private void establishSocketConnection(String server, int port, int cadence) {
-        if (rocosSocket == null) {
-            rocosSocket = new Socket();
-            new Thread()  {
-                @Override
-                public void run() {
-                    try {
-                        InetAddress serverAddr = InetAddress.getByName(server);
-                        rocosSocket = new Socket(serverAddr, port);
-                        print(String.format("Socket created to %s:%d", server, port));
-                    } catch(Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    rocosTimer = new Timer();
-                    rocosTimerTask = new TimerTask() {
-                        @Override
-                        public void run() {
-                            try {
-                                OutputStream out = rocosSocket.getOutputStream();
-                                JsonObject jo = new JsonObject();
-                                Pose2D pose = robotBase.getOdometryPose(-1);
-                                jo.addProperty("theta", pose.getTheta());
-                                jo.addProperty("x", pose.getX());
-                                jo.addProperty("y", pose.getY());
-                                out.write(jo.toString().getBytes());
-                            } catch(Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-                    rocosTimer.schedule(rocosTimerTask, cadence, cadence);
-                }
-            }.start();
-        }
-    }
-
-    // Implement LocationListener
-    @Override
-    public void onLocationChanged(Location location) {
-        lastLocation = location;
-        print("Got new location: " + lastLocation.toString());
-    }
-
-    @Override
-    public void onStatusChanged(String s, int i, Bundle bundle) {
-        print("Status changed: " + s);
-    }
-
-    @Override
-    public void onProviderEnabled(String s) {
-        print("Provider Enabled: " + s);
-    }
-
-    @Override
-    public void onProviderDisabled(String s) {
-        print("Provider Disabled: " + s);
-    }
-
-    // Implement MessageCallback
-    @Override
-    public IotHubMessageResult execute(Message message, Object callbackContext) {
-        String strMsg = new String(message.getBytes());
-        JsonElement element = parser.parse(strMsg);
-
-        if (element.isJsonObject()) {
-            JsonObject command = element.getAsJsonObject();
-            if (command.has("type")) {
-                if (command.get("type").getAsString().equals("move")) {
-                    float linear = command.get("linear").getAsFloat();
-                    float angular = command.get("angular").getAsFloat();
-
-                    if (robotBase.isBind()) {
-                        robotBase.setLinearVelocity(linear);
-                        robotBase.setAngularVelocity(angular);
-                    }
-                }
-                else if (command.get("type").getAsString().equals("look")) {
-                    float yaw = command.get("yaw").getAsFloat();
-                    float pitch = command.get("pitch").getAsFloat();
-
-                    if (robotHead.isBind()) {
-                        robotHead.setWorldYaw(yaw);
-                        robotHead.setWorldPitch(pitch);
-                    }
-                }
-                else if (command.get("type").getAsString().equals("socket")) {
-                    String server = command.get("address").getAsString();
-                    int port = command.get("port").getAsInt();
-                    int cadence = command.get("cadence").getAsInt();
-                    establishSocketConnection(server, port, cadence);
-                }
-            }
-        }
-        return IotHubMessageResult.COMPLETE;
-    }
-
-    public void updateMessageCount() {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                msgCount.setText(String.format("%d Msgs", messages));
-            }
-        });
-    }
-
-    public void print(String msg) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                String out = output.getText().toString();
-                out += "\n" + msg;
-                output.setText(out);
-
-                int height = output.getHeight();
-                container.scrollTo(0, height);
-            }
-        });
-    }
+    private LinkedList<RobotAction> actions = new LinkedList<RobotAction>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_main);
 
-        move = (Button)findViewById(R.id.move);
-        navigation = (Button)findViewById(R.id.navigation);
-        vision = (Button)findViewById(R.id.vision);
-        speech = (Button)findViewById(R.id.speech);
-        reset = (Button)findViewById(R.id.reset);
-        demo = (Button)findViewById(R.id.demo);
-        output = (TextView)findViewById(R.id.output);
-        container = (ScrollView)findViewById(R.id.container);
-        msgCount = (TextView)findViewById(R.id.msgCount);
+        Log.d(TAG, String.format("onCreate threadId=%d", Thread.currentThread().getId()));
 
-        move.setEnabled(false);
-        navigation.setEnabled(false);
-        vision.setEnabled(false);
-        speech.setEnabled(false);
-        reset.setEnabled(false);
-        demo.setEnabled(false);
-        output.setText("");
-        print("\n\nonCreate");
+        emojiView = (EmojiView)findViewById(R.id.face);
+        emojiView.setOnClickListener(this);
+
+        handler = new Handler(this);
+        robotConversation = new RobotConversation(this);
+        robotTracking = new RobotTracking(this, this, this);
 
         robotBase = Base.getInstance();
+        robotEmoji = Emoji.getInstance();
         robotHead = Head.getInstance();
         robotSensor = Sensor.getInstance();
-        robotVision = Vision.getInstance();
         robotRecognizer = Recognizer.getInstance();
         robotSpeaker = Speaker.getInstance();
+        robotVision = Vision.getInstance();
 
-        robotBase.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.BASE));
-        robotHead.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.HEAD));
-        robotSensor.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.SENSOR));
-        robotVision.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.VISION));
-        robotRecognizer.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.RECOGNIZER));
-        robotSpeaker.bindService(getApplicationContext(), new RobotBindStateListener(ServiceType.SPEAKER));
+        robotBase.bindService(getApplicationContext(), new MessageFromBindState(handler, SERVICE_BIND_BASE, SERVICE_UNBIND_BASE));
+        robotHead.bindService(getApplicationContext(), new MessageFromBindState(handler, SERVICE_BIND_HEAD, SERVICE_UNBIND_HEAD));
+        robotRecognizer.bindService(getApplicationContext(), new MessageFromBindState(handler, SERVICE_BIND_RECOGNIZER, SERVICE_UNBIND_RECOGNIZER));
+        robotSensor.bindService(getApplicationContext(), new MessageFromBindState(handler, SERVICE_BIND_SENSOR, SERVICE_UNBIND_SENSOR));
+        robotSpeaker.bindService(getApplicationContext(), new MessageFromBindState(handler, SERVICE_BIND_SPEAKER, SERVICE_UNBIND_SPEAKER));
+        robotVision.bindService(getApplicationContext(), new MessageFromBindState(handler, SERVICE_BIND_VISION, SERVICE_UNBIND_VISION));
 
-        LocationManager locationManager = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 0, this);
-        lastLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        if (lastLocation != null) {
-            print(lastLocation.toString());
+        telemetry = new Telemetry(this);
+        telemetry.registerEvents(this);
+
+        connection = new AzureIoT(handler, CONNECTION_OPEN, CONNECTION_CLOSED, this);
+        connection.connect(connString, isIoTCentral);
+
+        teleops = new TeleOps(this, telemetry);
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+
+        Log.d(TAG, String.format("onRestart threadId=%d", Thread.currentThread().getId()));
+
+        if (isBindBase && isBindHead && isBindSensor && isConnected) {
+            timeout = cadence * 1000;
+            handler.sendEmptyMessageDelayed(ACTION_SEND_TELEMETRY, timeout);
         }
+    }
 
-        broadcastReceiver = new RobotBroadcastReceiver();
-        getApplicationContext().registerReceiver(broadcastReceiver, broadcastReceiver.getFilter());
+    @Override
+    protected void onStop() {
+        super.onStop();
 
-        telemetry = new Telemetry(robotBase, robotHead, robotSensor);
+        Log.d(TAG, String.format("onStop threadId=%d", Thread.currentThread().getId()));
 
-        try {
-            client = new DeviceClient(connString, IotHubClientProtocol.MQTT);
-            client.open();
-            client.setMessageCallback(this, null);
-            isConnected = true;
-            print("Connected to IoTHub");
-            initRobot();
-        } catch(Exception e) {
-            print("Exception opening IoTHub connection: " + e.getMessage() + e.toString());
-            try {
-                client.closeNow();
-            } catch(Exception e2) {
-
-            }
-        }
+        timeout = 0;
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
 
-        print("onDestroy");
+        Log.d(TAG, String.format("onDestroy threadId=%d", Thread.currentThread().getId()));
 
-        getApplicationContext().unregisterReceiver(broadcastReceiver);
-        robotHead.unbindService();
-        robotBase.unbindService();
-        robotSensor.unbindService();
-        robotVision.unbindService();
-        robotRecognizer.unbindService();
-        robotSpeaker.unbindService();
+        telemetry.unregisterEvents(this);
 
         isConnected = false;
-        try {
-            client.closeNow();
-        } catch(Exception e) {
+        timeout = 0;
+        connection.close();
 
+        robotTracking.stopFollowing();
+        robotTracking.stopTracking();
+        robotConversation.stop();
+
+        robotBase.unbindService();
+        robotHead.unbindService();
+        robotRecognizer.unbindService();
+        robotSensor.unbindService();
+        robotSpeaker.unbindService();
+        robotVision.unbindService();
+    }
+
+    private void initRobot() {
+        Log.d(TAG, String.format("initRobot threadId=%d", Thread.currentThread().getId()));
+
+        if (currentAction == null) {
+            if (isBindBase && isBindHead && isBindRecognizer && isBindSensor && isBindSpeaker && isBindVision) {
+                robotEmoji.init(this);
+                robotEmoji.setEmojiView(emojiView);
+                robotEmoji.setBaseControlHandler(this);
+                robotEmoji.setHeadControlHandler(this);
+
+                robotConversation.start();
+                RobotAction ra = RobotAction.getTrack(Robot.TRACK_BEHAVIOR_WATCH);
+                actionDo(ra);
+            }
         }
 
-        if (timer != null) {
-            timer.cancel();
-            timer = null;
-        }
-        if (timerTask != null) {
-            timerTask.cancel();
-            timerTask = null;
+        if (currentAction != null) {
+            if (!isConnected) {
+                actionSay("Offline systems operational.");
+            } else {
+                timeout = cadence * 1000;
+                handler.sendEmptyMessageDelayed(ACTION_SEND_TELEMETRY, timeout);
+                actionSay("All systems operational.");
+            }
         }
     }
 
-    public void onClick(View view) {
-        Intent intent = null;
-        switch (view.getId()) {
-            case R.id.move:
-                intent = new Intent(this, MoveActivity.class);
-                startActivity(intent);
+    // Handler.Callback
+    @Override
+    public boolean handleMessage(@NonNull Message message) {
+        long tid = Thread.currentThread().getId();
+        switch(message.what) {
+            case SERVICE_BIND_BASE:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_BASE threadId=%d", tid));
+                isBindBase = true;
+                actionSay("Propulsion systems initialized.");
+                initRobot();
                 break;
-            case R.id.navigation:
-                intent = new Intent(this, NavigationActivity.class);
-                startActivity(intent);
+            case SERVICE_UNBIND_BASE:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_UNBIND_BASE threadId=%d", tid));
+                isBindBase = false;
                 break;
-            case R.id.vision:
-                intent = new Intent(this, VisionActivity.class);
-                startActivity(intent);
+            case SERVICE_BIND_HEAD:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_HEAD threadId=%d", tid));
+                isBindHead = true;
+                actionSay("Degrees of freedom, check!");
+                initRobot();
                 break;
-            case R.id.speech:
-                intent = new Intent(this, SpeechActivity.class);
-                startActivity(intent);
+            case SERVICE_UNBIND_HEAD:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_UNBIND_HEAD threadId=%d", tid));
+                isBindHead = false;
                 break;
-            case R.id.clear:
-                output.setText("");
+            case SERVICE_BIND_RECOGNIZER:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_RECOGNIZER threadId=%d", tid));
+                actionSay("Auditory systems initialized.");
+                isBindRecognizer = true;
+                initRobot();
                 break;
-            case R.id.reset:
-                if (isBindBase) {
-                    robotBase.cleanOriginalPoint();
-                    Pose2D pose2D = robotBase.getOdometryPose(-1);
-                    robotBase.setOriginalPoint(pose2D);
+            case SERVICE_UNBIND_RECOGNIZER:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_UNBIND_RECOGNIZER threadId=%d", tid));
+                isBindRecognizer = false;
+                break;
+            case SERVICE_BIND_SENSOR:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_SENSOR threadId=%d", tid));
+                actionSay("Feelings, check!");
+                isBindSensor = true;
+                initRobot();
+                break;
+            case SERVICE_UNBIND_SENSOR:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_UNBIND_SENSOR threadId=%d", tid));
+                isBindSensor = false;
+                break;
+            case SERVICE_BIND_SPEAKER:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_SPEAKER threadId=%d", tid));
+                actionSay("Vocalization systems initialized.");
+                isBindSpeaker = true;
+                initRobot();
+                break;
+            case SERVICE_UNBIND_SPEAKER:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_UNBIND_SPEAKER threadId=%d", tid));
+                isBindSpeaker = false;
+                break;
+            case SERVICE_BIND_VISION:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_VISION threadId=%d", tid));
+                actionSay("Perception systems initialized.");
+                isBindVision = true;
+                initRobot();
+                break;
+            case SERVICE_UNBIND_VISION:
+                Log.d(TAG, String.format("handleMessage what=SERVICE_UNBIND_VISION threadId=%d", tid));
+                isBindVision = false;
+                break;
+            case ACTION_SEND_STATE:
+                Log.d(TAG, String.format("handleMessage what=STATE_CHANGED threadId=%d", tid));
+                if (isBindBase && isBindHead && isBindSensor && isConnected) {
+                    Log.d(TAG, "Sending State");
+                    connection.sendMessage(telemetry.getState());
+                    messages += 1;
                 }
                 break;
-            case R.id.demo:
-                intent = new Intent(this, DemoActivity.class);
-                startActivity(intent);
+            case ACTION_SEND_LOCATION:
+                Log.d(TAG, String.format("handleMessage what=LOCATION_CHANGED threadId=%d", tid));
+                if (isBindBase && isBindHead && isBindSensor && isConnected) {
+                    Log.d(TAG, "Sending Location");
+                    connection.sendMessage(telemetry.getLocation());
+                    messages += 1;
+                }
                 break;
+            case CONNECTION_OPEN:
+                Log.d(TAG, String.format("handleMessage what=CONNECTION_OPEN threadId=%d", tid));
+                actionSay("Connection to cloud, check!");
+                isConnected = true;
+                initRobot();
+                break;
+            case CONNECTION_CLOSED:
+                Log.d(TAG, String.format("handleMessage what=CONNECTION_CLOSED threadId=%d", tid));
+                actionSay("Connection to cloud has been lost");
+                isConnected = false;
+                break;
+            case ACTION_SEND_TELEMETRY:
+                Log.d(TAG, String.format("handleMessage what=ACTION_SEND_TELEMETRY threadId=%d", tid));
+                if (timeout > 0) {
+                    if (isBindBase && isBindHead && isBindSensor && isConnected) {
+                        connection.sendMessage(telemetry.getMessage());
+                        messages += 1;
+                    }
+                    handler.sendEmptyMessageDelayed(ACTION_SEND_TELEMETRY, timeout);
+                }
+                break;
+            case ACTION_BEHAVE:
+                Log.d(TAG, String.format("handleMessage what=ACTION_BEHAVE threadId=%d", tid));
+                try {
+                    int behavior = (int)(Integer)message.obj;
+                    RobotAnimator emotion = RobotAnimatorFactory.getReadyRobotAnimator(behavior);
+                    robotEmoji.startAnimation(emotion, this);
+                } catch (Exception e) {
+                    Log.e(TAG, "Exception doing", e);
+                    doNextAction(Robot.ACTION_TYPE_EMOTE);
+                }
+                break;
+            case ACTION_MOVE:
+                Log.d(TAG, String.format("DEBUG handleMessage what=ACTION_MOVE threadId=%d", tid));
+                doNextAction(Robot.ACTION_TYPE_MOVE);
+                break;
+            case ACTION_LOOK:
+                Log.d(TAG, String.format("handleMessage what=ACTION_MOVE threadId=%d", tid));
+                doNextAction(Robot.ACTION_TYPE_LOOK);
+                break;
+            default:
+                return false;
+        }
+        return true;
+    }
+
+    // View.OnClickListener
+    @Override
+    public void onClick(View view) {
+        Log.d(TAG, String.format("onClick id=%d threadId=%d", view.getId(), Thread.currentThread().getId()));
+        Intent intent = null;
+        switch (view.getId()) {
+            case R.id.face:
+                //intent = new Intent(this, DebugActivity.class);
+                //startActivity(intent);
+                if (currentAction != null && currentAction.getActionType() == Robot.ACTION_TYPE_TRACK) {
+                    int newBehavior = Robot.TRACK_BEHAVIOR_WATCH;
+                    if (currentAction.getBehavior() == Robot.TRACK_BEHAVIOR_WATCH) {
+                        newBehavior = Robot.TRACK_BEHAVIOR_FOLLOW;
+                    }
+
+                    RobotAction ra = RobotAction.getTrack(newBehavior);
+                    actionDo(ra);
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    // EmojiPlayListener
+    @Override
+    public void onAnimationStart(RobotAnimator animator) {
+        Log.d(TAG, String.format("onAnimationStart threadId=%d", Thread.currentThread().getId()));
+    }
+
+    @Override
+    public synchronized void onAnimationEnd(RobotAnimator animator) {
+        Log.d(TAG, String.format("onAnimationEnd threadId=%d", Thread.currentThread().getId()));
+        doNextAction(Robot.ACTION_TYPE_EMOTE);
+    }
+
+    @Override
+    public synchronized void onAnimationCancel(RobotAnimator animator) {
+        Log.d(TAG, String.format("onAnimationCancel threadId=%d", Thread.currentThread().getId()));
+        doNextAction(Robot.ACTION_TYPE_EMOTE);
+    }
+
+    // Emoji BaseControlHandler
+    @Override
+    public void setLinearVelocity(float velocity) {
+        Log.d(TAG, String.format("setLinearVelocity threadId=%d", Thread.currentThread().getId()));
+        robotBase.setLinearVelocity(velocity);
+    }
+
+    @Override
+    public void setAngularVelocity(float velocity) {
+        Log.d(TAG, String.format("setAngularVelocity threadId=%d", Thread.currentThread().getId()));
+        robotBase.setAngularVelocity(velocity);
+    }
+
+    @Override
+    public void stop() {
+        Log.d(TAG, String.format("stop threadId=%d", Thread.currentThread().getId()));
+        robotBase.stop();
+    }
+
+    @Override
+    public Ticks getTicks() {
+        Log.d(TAG, String.format("getTicks threadId=%d", Thread.currentThread().getId()));
+        return null;
+    }
+
+    // Emoji HeadControlHandler
+    @Override
+    public int getMode() {
+        Log.d(TAG, String.format("getMode threadId=%d", Thread.currentThread().getId()));
+        return robotHead.getMode();
+    }
+
+    @Override
+    public void setMode(int mode) {
+        Log.d(TAG, String.format("setMode threadId=%d", Thread.currentThread().getId()));
+        robotHead.setMode(mode);
+    }
+
+    @Override
+    public void setWorldPitch(float angle) {
+        Log.d(TAG, String.format("setWorldPitch threadId=%d", Thread.currentThread().getId()));
+        robotHead.setWorldPitch(angle);
+    }
+
+    @Override
+    public void setWorldYaw(float angle) {
+        Log.d(TAG, String.format("setWorldYaw threadId=%d", Thread.currentThread().getId()));
+        robotHead.setWorldYaw(angle);
+    }
+
+    @Override
+    public float getWorldPitch() {
+        Log.d(TAG, String.format("getWorldPitch threadId=%d", Thread.currentThread().getId()));
+        return robotHead.getWorldPitch().getAngle();
+    }
+
+    @Override
+    public float getWorldYaw() {
+        Log.d(TAG, String.format("getWorldYaw threadId=%d", Thread.currentThread().getId()));
+        return robotHead.getWorldYaw().getAngle();
+    }
+
+    // RobotTracking.BaseControlHandler
+    @Override
+    public void rawModeMove(float linear, float angular) {
+        Log.d(TAG, String.format("moveVelocity threadId=%d", Thread.currentThread().getId()));
+        robotBase.setControlMode(Base.CONTROL_MODE_RAW);
+        robotBase.setLinearVelocity(linear);
+        robotBase.setAngularVelocity(angular);
+    }
+
+    @Override
+    public void targetModeMove(float distance, float angle) {
+        Log.d(TAG, String.format("moveTarget threadId=%d", Thread.currentThread().getId()));
+        robotBase.setControlMode(Base.CONTROL_MODE_FOLLOW_TARGET);
+        robotBase.updateTarget(distance, angle);
+    }
+
+    // RobotTracking.HeadControlHandler
+    @Override
+    public float getHeadYaw() {
+        Log.d(TAG, String.format("getHeadYaw threadId=%d", Thread.currentThread().getId()));
+        return robotHead.getHeadJointYaw().getAngle();
+    }
+
+    @Override
+    public float getHeadPitch() {
+        Log.d(TAG, String.format("getHeadPitch threadId=%d", Thread.currentThread().getId()));
+        return robotHead.getHeadJointPitch().getAngle();
+    }
+
+    @Override
+    public void setHeadYawVelocity(float velocity) {
+        Log.d(TAG, String.format("setHeadYawVelocity threadId=%d", Thread.currentThread().getId()));
+//        robotHead.setMode(Head.MODE_SMOOTH_TACKING);
+        robotHead.setYawAngularVelocity(velocity);
+    }
+
+    @Override
+    public void setHeadPitchVelocity(float velocity) {
+        Log.d(TAG, String.format("setHeadPitchVelocity threadId=%d", Thread.currentThread().getId()));
+ //       robotHead.setMode(Head.MODE_SMOOTH_TACKING);
+        robotHead.setPitchAngularVelocity(velocity);
+    }
+
+    @Override
+    public void smoothModeTarget(float yaw, float pitch) {
+        Log.d(TAG, String.format("smoothModeTarget threadId=%d", Thread.currentThread().getId()));
+        robotHead.setMode(Head.MODE_SMOOTH_TACKING);
+        robotHead.setWorldYaw(yaw);
+        robotHead.setWorldPitch(pitch);
+    }
+
+    @Override
+    public void setHeadMode(int mode) {
+        Log.d(TAG, String.format("setHeadMode threadId=%d", Thread.currentThread().getId()));
+        robotHead.setMode(mode);
+    }
+
+    // Robot
+    @Override
+    public synchronized String getStatus() {
+        Log.d(TAG, String.format("getStatus threadId=%d", Thread.currentThread().getId()));
+
+        String iSee;
+        if (peopleDetected == 0) {
+            iSee = "I am all alone";
+        } else if (peopleDetected == 1) {
+            iSee = "I only see one person";
+        } else {
+            iSee = String.format("I see %d people");
+        }
+        return String.format("I have sent %d messages, %s, and my head pitch is %f radians", messages, iSee, robotHead.getHeadJointPitch().getAngle());
+    }
+
+    @Override
+    public synchronized int getCadence() {
+        Log.d(TAG, String.format("getCadence threadId=%d", Thread.currentThread().getId()));
+
+        return cadence;
+    }
+
+    @Override
+    public synchronized void setCadence(int cadence) {
+        Log.d(TAG, String.format("setCadence threadId=%d", Thread.currentThread().getId()));
+
+        this.cadence = cadence;
+        if (timeout > 0) {
+            timeout = cadence * 1000;
+        }
+        if (isConnected) {
+            connection.updateTwin();
+        }
+    }
+
+    @Override
+    public synchronized Location getLocation() {
+        Log.d(TAG, String.format("getLocation threadId=%d", Thread.currentThread().getId()));
+
+        return lastLocation;
+    }
+
+    @Override
+    public synchronized void setLocation(Location location) {
+        Log.d(TAG, String.format("setLocation threadId=%d", Thread.currentThread().getId()));
+
+        if (this.lastLocation == null && location != null) {
+            robotConversation.speak("Hey, I know where I am now!");
+        }
+        this.lastLocation = location;
+        handler.sendEmptyMessage(ACTION_SEND_LOCATION);
+    }
+
+    @Override
+    public synchronized String getState() {
+        Log.d(TAG, String.format("establishSocketConnection threadId=%d", Thread.currentThread().getId()));
+
+        return lastState;
+    }
+
+    @Override
+    public synchronized void setState(String state) {
+        Log.d(TAG, String.format("establishSocketConnection threadId=%d", Thread.currentThread().getId()));
+
+        this.lastState = state;
+        handler.sendEmptyMessage(ACTION_SEND_STATE);
+    }
+
+    @Override
+    public synchronized int getPeopleDetected() {
+        return peopleDetected;
+    }
+
+    @Override
+    public synchronized void setPeopleDetected(int peopleCount) {
+        Log.d(TAG, String.format("setPeopleDetected threadId=%d", Thread.currentThread().getId()));
+
+        if (peopleDetected != peopleCount) {
+            peopleDetected = peopleCount;
+            if (debug) {
+                if (peopleDetected == 0) {
+
+                    actionSay("I'm all alone.");
+                    intro = false;
+                } else {
+                    if (peopleDetected > 1) {
+                        actionSay(String.format("I see %d people", peopleDetected));
+                    } else {
+                        if (!intro) {
+                            actionSay("Hello, my name is Loomo. Will you be my friend?");
+                            intro = true;
+                        } else {
+                            actionSay("I think we're alone now.");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public synchronized boolean getDebug() {
+        Log.d(TAG, String.format("getDebug threadId=%d", Thread.currentThread().getId()));
+        return debug;
+    }
+
+    @Override
+    public synchronized void setDebug(boolean debug) {
+        Log.d(TAG, String.format("setDebug threadId=%d", Thread.currentThread().getId()));
+        this.debug = debug;
+    }
+
+    @Override
+    public void actionSay(String phrase) {
+        Log.d(TAG, String.format("actionSay threadId=%d", Thread.currentThread().getId()));
+        robotConversation.speak(phrase);
+    }
+
+    @Override
+    public synchronized void actionDo(RobotAction action) {
+        Log.d(TAG, String.format("DEBUG actionDo threadId=%d", Thread.currentThread().getId()));
+        actions.add(action);
+        Log.d(TAG, String.format("DEBUG actionDo actions.size()=%d threadId=%d", actions.size(), Thread.currentThread().getId()));
+        doNextAction(0);
+    }
+
+    private synchronized void doNextAction(int lastActionType)
+    {
+        Log.d(TAG, String.format("DEBUG doNextAction lastActionType=%d threadId=%d", lastActionType, Thread.currentThread().getId()));
+
+        // If we are just queueing an action and something is already going on, get out
+        if (lastActionType == 0) {
+            Log.d(TAG, String.format("DEBUG doNextAction lastActionType==0 threadId=%d", Thread.currentThread().getId()));
+            if (currentAction != null) {
+                int currentActionType = currentAction.getActionType();
+                Log.d(TAG, String.format("DEBUG doNextAction currentActionType=%d threadId=%d", currentActionType, Thread.currentThread().getId()));
+                if (currentActionType != Robot.ACTION_TYPE_TRACK) {
+                    Log.d(TAG, String.format("DEBUG doNextAction returning threadId=%d", Thread.currentThread().getId()));
+                    return;
+                }
+            }
+        }
+
+        RobotAction nextAction = resumeAction;
+        if (!actions.isEmpty()) {
+            nextAction = actions.remove();
+            Log.d(TAG, String.format("DEBUG doNextAction actions.size()=%d threadId=%d", actions.size(), Thread.currentThread().getId()));
+        }
+
+        // if we were idle, stop it
+        if (currentAction != null && currentAction.getActionType() == Robot.ACTION_TYPE_TRACK) {
+            if (nextAction.getActionType() != Robot.ACTION_TYPE_TRACK) {
+                Log.d(TAG, String.format("DEBUG doNextAction stopTracking threadId=%d", Thread.currentThread().getId()));
+                if (currentAction.getBehavior() == Robot.TRACK_BEHAVIOR_FOLLOW) {
+                    robotTracking.stopFollowing();
+                }
+                robotTracking.stopTracking();
+                resumeAction = currentAction;
+            }
+        }
+
+        currentAction = nextAction;
+
+        float arg1, arg2;
+        Message msg;
+        switch(currentAction.getActionType()) {
+            case Robot.ACTION_TYPE_EMOTE:
+                Log.d(TAG, String.format("DEBUG doNextAction actionType=ACTION_TYPE_EMOTE threadId=%d", Thread.currentThread().getId()));
+                msg = handler.obtainMessage(ACTION_BEHAVE, nextAction.getBehavior());
+                handler.sendMessage(msg);
+                break;
+            case Robot.ACTION_TYPE_LOOK:
+                Log.d(TAG, String.format("DEBUG doNextAction actionType=ACTION_TYPE_LOOK threadId=%d", Thread.currentThread().getId()));
+                arg1 = currentAction.getYaw();
+                arg2 = currentAction.getPitch();
+                if (arg1 != Float.NaN || arg2 != Float.NaN) {
+                    Log.d(TAG, String.format("DEBUG doNextAction valid look data threadId=%d", Thread.currentThread().getId()));
+                    robotHead.setMode(Head.MODE_SMOOTH_TACKING);
+                    if (arg1 != Float.NaN) {
+                        robotHead.setWorldYaw(arg1);
+                    }
+                    if (arg2 != Float.NaN) {
+                        robotHead.setWorldPitch(arg2);
+                    }
+                }
+                try {
+                    Thread.sleep(500);
+                }
+                catch (Exception e) {
+                    Log.e(TAG, String.format("DEBUG doNextAction Exception sleeping threadId=%d", Thread.currentThread().getId()), e);
+                }
+                handler.sendEmptyMessage(ACTION_LOOK);
+                break;
+            case Robot.ACTION_TYPE_MOVE:
+                Log.d(TAG, String.format("DEBUG doNextAction actionType=ACTION_TYPE_MOVE threadId=%d", Thread.currentThread().getId()));
+                arg1 = currentAction.getLinear();
+                arg2 = currentAction.getAngular();
+                if (nextAction.getBehavior() == Robot.MOVEMENT_BEHAVIOR_MOVE_VELOCITY) {
+                    if (arg1 != Float.NaN || arg2 != Float.NaN) {
+                        Log.d(TAG, String.format("DEBUG doNextAction valid move data threadId=%d", Thread.currentThread().getId()));
+                        robotBase.setControlMode(Base.CONTROL_MODE_RAW);
+                        if (arg1 != Float.NaN) {
+                            robotBase.setLinearVelocity(arg1);
+                        }
+                        if (arg2 != Float.NaN) {
+                            robotBase.setAngularVelocity(arg2);
+                        }
+                    }
+                }
+                else {
+                    if (arg1 != Float.NaN && arg2 != Float.NaN) {
+                        Log.d(TAG, String.format("DEBUG doNextAction valid move data threadId=%d", Thread.currentThread().getId()));
+                        robotBase.setControlMode(Base.CONTROL_MODE_FOLLOW_TARGET);
+                        robotBase.updateTarget(arg1, arg2);
+                    }
+                }
+                try {
+                    Thread.sleep(500);
+                }
+                catch (Exception e) {
+                    Log.e(TAG, String.format("DEBUG doNextAction Exception sleeping threadId=%d", Thread.currentThread().getId()), e);
+                }
+                handler.sendEmptyMessage(ACTION_MOVE);
+                break;
+            case Robot.ACTION_TYPE_TRACK:
+                Log.d(TAG, String.format("DEBUG doNextAction actionType=ACTION_TYPE_TRACK threadId=%d", Thread.currentThread().getId()));
+                robotTracking.startTracking();
+                if (currentAction.getBehavior() == Robot.TRACK_BEHAVIOR_FOLLOW) {
+                    robotTracking.startFollowing();
+                }
+                break;
+        }
+    }
+
+    @Override
+    public void establishSocketConnection(String server, int port, int cadence) {
+        Log.d(TAG, String.format("establishSocketConnection threadId=%d", Thread.currentThread().getId()));
+        teleops.start(server, port, cadence);
+        if (debug) {
+            actionSay("Teleops connection initiated");
         }
     }
 }

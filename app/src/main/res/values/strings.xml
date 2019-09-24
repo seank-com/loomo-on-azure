@@ -1,24 +1,3 @@
 <resources>
     <string name="app_name">Loomo on Azure</string>
-    <string name="clear">Clear</string>
-    <string name="reset">Reset</string>
-    <string name="demo">Demo</string>
-    <string name="move">Move</string>
-    <string name="navigation">Nav</string>
-    <string name="vision">Vision</string>
-    <string name="speech">Speech</string>
-    <string name="base">Base</string>
-    <string name="head">Head</string>
-    <string name="up">Up</string>
-    <string name="down">Down</string>
-    <string name="forward">Forward</string>
-    <string name="back">Back</string>
-    <string name="left">Left</string>
-    <string name="right">Right</string>
-    <string name="update">Update</string>
-    <string name="vls">Visual Location System</string>
-    <string name="set_start">Set Starting Point</string>
-    <string name="set_checkpoint">Set Checkpoint</string>
-    <string name="goto_origin">Go To Origin</string>
-    <string name="run">Run</string>
 </resources>

@@ -8,6 +8,7 @@ A quick integration test for the Segway Loomo
 - [Azure's IoT Client SDK for Android Devices](https://github.com/Azure/azure-iot-sdk-java/blob/master/doc/java-devbox-setup.md#building-for-android-device)
 - [Android Docs](https://developer.android.com/training/basics/firstapp/)
 - [Java Language Tutorials](https://docs.oracle.com/javase/tutorial/java/TOC.html)
+- [IoT Central Sample](https://docs.microsoft.com/en-us/azure/iot-central/howto-connect-nodejs#add-a-real-device)
 
 ## Loomo's Coordinate System
 
@@ -17,7 +18,7 @@ A quick integration test for the Segway Loomo
 
 ## Connecting to Azure
 
-Be sure to edit the ```MainActivity.java``` file and set the ```connString``` near the top.
+Be sure to edit the ```MainActivity.java``` file and set the ```connString``` near the top. IoTHub connection strings can be found in the [portal](https://portal.azure.com), for IoT Central you will need to [generate the connection string](https://docs.microsoft.com/en-us/azure/iot-central/tutorial-add-device#generate-the-connection-string)
 
 ## Telemetry
 
@@ -25,25 +26,26 @@ Loomo sends the following telemetry data to the cloud
 
 ```json
 {
+  "type":"telemetry",
   "Base":{
     "OdometryPose":{
-      "AngularVelocity":-0.029381856,
-      "LinearVelocity":0.18418857,
-      "Theta":0.038606558,
-      "X":0.28975758,
-      "Y":0.07275029
+      "AngularVelocity":2.9422954E-06,
+      "LinearVelocity":-7.0900177E-07,
+      "Theta":1.2450294,
+      "X":7.1827145,
+      "Y":18.051867
     },
-    "AngularVelocity":-0.029381856,
+    "AngularVelocity":0.0029737677,
     "AngularVelocityLimit":0.0,
     "CartMile":56,
     "ControlMode":0,
-    "LightBrightness":87,
-    "LinearVelocity":0.5277778,
+    "LightBrightness":68,
+    "LinearVelocity":0.0,
     "LinearVelocityLimit":5.0,
-    "Mileage":379147.0,
+    "Mileage":388773.0,
     "RidingSpeedLimit":5.0,
-    "RobotPower":72,
-    "UltrasonicDistance":285.0,
+    "RobotPower":100,
+    "UltrasonicDistance":529.0,
     "UltrasonicObstacleAvoidanceDistance":1.2,
     "BodyLightOpen":0,
     "CartModeWheelSlip":1,
@@ -51,65 +53,87 @@ Loomo sends the following telemetry data to the cloud
     "RidingInSpeedLimit":0,
     "UltrasonicObstacleAvoidanceEnabled":0
   },
+  "AngularVelocity":0.0029737677,
+  "LinearVelocity":0.0,
+  "CartMile":56,
+  "Mileage":388773.0,
+  "RobotPower":100,
+  "LightBrightness":68,
+  "UltrasonicDistance":529.0,
+  "ControlMode":0,
   "Head":{
-    "HeadJointPitch":-1.5783722,
+    "HeadJointPitch":-1.4084424,
     "HeadJointRoll":0.0,
-    "HeadJointYaw":1.5721389,
-    "HeadMode":4,
+    "HeadJointYaw":-0.35932684,
+    "HeadMode":8,
     "HeadPitchAngularVelocity":0.0,
     "HeadRollAngularVelocity":0.0,
-    "HeadWorldPitch":-1.4297315,
-    "HeadWorldRoll":-1.3991402,
+    "HeadWorldPitch":-1.3213676,
+    "HeadWorldRoll":0.06760753,
     "HeadWorldYaw":0.0,
     "HeadYawAngularVelocity":0.0
   },
+  "HeadMode":8,
+  "HeadJointPitch":-1.4084424,
+  "HeadJoingYaw":-0.35932684,
   "Sensor":{
     "BasePose":{
-      "Yaw":0.6345122,
-      "Pitch":-0.4716176,
-      "Roll":-0.003835069
+      "Yaw":-1.4720912,
+      "Pitch":-0.025982592,
+      "Roll":0.0028763018
     },
     "BaseTicks":{
-      "LeftTicks":6927,
-      "RightTicks":7143
+      "LeftTicks":7034,
+      "RightTicks":6770
     },
     "BaseWheelInfo":{
-      "LeftSpeed":1865,
-      "RightSpeed":1793
+      "LeftSpeed":0,
+      "RightSpeed":0
     },
-    "HeadJointYaw":1.5721389,
-    "HeadJointPitch":-1.5783722,
+    "HeadJointYaw":-0.35932684,
+    "HeadJointPitch":-1.4084424,
     "HeadJointRoll":0.0,
     "HeadWorldYaw":0.0,
-    "HeadWorldPitch":-1.4297315,
-    "HeadWorldRoll":-1.3991402,
+    "HeadWorldYawTimestamp":1568354397671000,
+    "HeadWorldPitch":-1.3213676,
+    "HeadWorldPitchTimestamp":1568354397671000,
+    "HeadWorldRoll":0.06760753,
+    "HeadWorldRollTimestamp":1568354397671000,
     "InfraredData":{
-      "LeftDistance":431.0,
-      "RightDistance":428.0
+      "LeftDistance":766.0,
+      "RightDistance":1250.0
     },
     "Pose2D":{
-      "AngularVelocity":0.0121628875,
-      "LinearVelocity":0.19247325,
-      "Theta":0.05790984,
-      "X":0.3030938,
-      "Y":0.07339437
+      "AngularVelocity":0.0029737677,
+      "LinearVelocity":-0.000685636,
+      "Theta":1.2450294,
+      "X":7.1827145,
+      "Y":18.051867
     },
-    "UltrasonicDistance":285.0
+    "Frame":{
+      "BaseX":7.1827145,
+      "BaseY":18.051867,
+      "BaseTheta":0.0,
+      "BaseErrCode":0,
+      "HeadYaw":1.2531079,
+      "HeadPitch":-0.85681164,
+      "HeadErrCode":0
+    },
+    "UltrasonicDistance":529.0
   },
-  "EventProcessedUtcTime":"2019-08-14T04:29:25.3199855Z",
+  "EventProcessedUtcTime":"2019-09-13T05:59:57.4725206Z",
   "PartitionId":1,
-  "EventEnqueuedUtcTime":"2019-08-14T04:29:25.2590000Z",
+  "EventEnqueuedUtcTime":"2019-09-13T05:59:57.3890000Z",
   "IoTHub":{
-    "MessageId":"97235897-cc25-461b-9d62-a9f5ba493ac7",
-    "CorrelationId":"91c2ee16-e023-49ba-869f-a434d65d65b1",
+    "MessageId":"7cfa5987-acdc-4fa3-b6f5-26e838390bc2",
+    "CorrelationId":"b3bc02a3-9dba-444e-a368-a61fc7389411",
     "ConnectionDeviceId":"robot",
     "ConnectionDeviceGenerationId":"637008302286304863",
-    "EnqueuedTime":"2019-08-14T04:29:25.2630000Z",
+    "EnqueuedTime":"2019-09-13T05:59:57.3840000Z",
     "StreamId":null
+  }
 }
 ```
-
-For IoT Central properties need to be top-level (not nested). Fortunately, unknown properties are ignored, so if you want this robot to talk to IoT Central, you'll need to promote the properties that you would like access to. A meaningful sample in node can be found [here](https://docs.microsoft.com/en-us/azure/iot-central/howto-connect-nodejs#add-a-real-device). Don't forget these instructions to create a [connection string](https://docs.microsoft.com/en-us/azure/iot-central/tutorial-add-device#generate-the-connection-string).
 
 ## Cloud to Device messages
 
