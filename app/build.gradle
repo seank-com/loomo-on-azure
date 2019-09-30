@@ -40,6 +40,7 @@ dependencies {
 
     api 'com.microsoft.azure.sdk.iot:iot-device-client:1.17.5'
     implementation 'com.google.code.gson:gson:2.8.5'
+    //TODO implementation 'org.webrtc:google-webrtc:1.0.+'
 
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.2.0'

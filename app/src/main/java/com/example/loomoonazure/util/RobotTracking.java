@@ -43,16 +43,18 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
     private long startTime = System.currentTimeMillis();
 
     private Robot robot;
+    private RobotCamera robotCamera;
     private BaseControlHandler baseControlHandler;
     private HeadControlHandler headControlHandler;
 
     private Timer monitor;
     private int lastLook;
 
-    public RobotTracking(Robot robot, BaseControlHandler baseControlHandler, HeadControlHandler headControlHandler) {
+    public RobotTracking(Robot robot, RobotCamera robotCamera, BaseControlHandler baseControlHandler, HeadControlHandler headControlHandler) {
         Log.d(TAG, String.format("constructor threadId=%d", Thread.currentThread().getId()));
 
         this.robot = robot;
+        this.robotCamera = robotCamera;
         this.baseControlHandler = baseControlHandler;
         this.headControlHandler = headControlHandler;
 
@@ -80,8 +82,16 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
 
         if (dts == null && headPIDController == null) {
             dts = robotVision.getDTS();
-            dts.setVideoSource(DTS.VideoSource.CAMERA);
+            dts.setVideoSource(DTS.VideoSource.SURFACE);
 
+            robotCamera.start(dts.getSurface(), this);
+        }
+    }
+
+    public synchronized void beginTracking() {
+        Log.d(TAG, String.format("startTracking threadId=%d", Thread.currentThread().getId()));
+
+        if (dts != null  && headPIDController == null) {
             dts.start();
             dts.setPoseRecognitionEnabled(true);
 
@@ -137,6 +147,8 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
             headPIDController.stop();
             headPIDController = null;
         }
+
+        robotCamera.stop();
     }
 
     // PersonDetectListener

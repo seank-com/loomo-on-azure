@@ -17,6 +17,7 @@ import com.example.loomoonazure.util.AzureIoT;
 import com.example.loomoonazure.util.MessageFromBindState;
 import com.example.loomoonazure.util.Robot;
 import com.example.loomoonazure.util.RobotAction;
+import com.example.loomoonazure.util.RobotCamera;
 import com.example.loomoonazure.util.RobotConversation;
 import com.example.loomoonazure.util.RobotTracking;
 import com.example.loomoonazure.util.TeleOps;
@@ -95,6 +96,7 @@ public class MainActivity
 
     private RobotConversation robotConversation;
     private RobotTracking robotTracking;
+    private RobotCamera robotCamera;
     
     private Handler handler;
 
@@ -129,7 +131,8 @@ public class MainActivity
 
         handler = new Handler(this);
         robotConversation = new RobotConversation(this);
-        robotTracking = new RobotTracking(this, this, this);
+        robotCamera = new RobotCamera(this);
+        robotTracking = new RobotTracking(this, robotCamera, this, this);
 
         robotBase = Base.getInstance();
         robotEmoji = Emoji.getInstance();
@@ -183,6 +186,7 @@ public class MainActivity
         Log.d(TAG, String.format("onDestroy threadId=%d", Thread.currentThread().getId()));
 
         telemetry.unregisterEvents(this);
+        robotCamera.stop();
 
         isConnected = false;
         timeout = 0;
@@ -210,6 +214,7 @@ public class MainActivity
                 robotEmoji.setBaseControlHandler(this);
                 robotEmoji.setHeadControlHandler(this);
 
+//                robotCamera.start();
                 robotConversation.start();
                 RobotAction ra = RobotAction.getTrack(Robot.TRACK_BEHAVIOR_WATCH);
                 actionDo(ra);
@@ -363,15 +368,16 @@ public class MainActivity
             case R.id.face:
                 //intent = new Intent(this, DebugActivity.class);
                 //startActivity(intent);
-                if (currentAction != null && currentAction.getActionType() == Robot.ACTION_TYPE_TRACK) {
-                    int newBehavior = Robot.TRACK_BEHAVIOR_WATCH;
-                    if (currentAction.getBehavior() == Robot.TRACK_BEHAVIOR_WATCH) {
-                        newBehavior = Robot.TRACK_BEHAVIOR_FOLLOW;
-                    }
-
-                    RobotAction ra = RobotAction.getTrack(newBehavior);
-                    actionDo(ra);
-                }
+//                if (currentAction != null && currentAction.getActionType() == Robot.ACTION_TYPE_TRACK) {
+//                    int newBehavior = Robot.TRACK_BEHAVIOR_WATCH;
+//                    if (currentAction.getBehavior() == Robot.TRACK_BEHAVIOR_WATCH) {
+//                        newBehavior = Robot.TRACK_BEHAVIOR_FOLLOW;
+//                    }
+//
+//                    RobotAction ra = RobotAction.getTrack(newBehavior);
+//                    actionDo(ra);
+//                }
+                robotCamera.takePicture();
                 break;
             default:
                 break;
