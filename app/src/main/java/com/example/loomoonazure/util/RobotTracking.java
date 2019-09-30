@@ -1,10 +1,10 @@
 package com.example.loomoonazure.util;
 
 import android.util.Log;
+import android.view.Surface;
 
 import com.segway.robot.algo.dts.BaseControlCommand;
 import com.segway.robot.algo.dts.DTSPerson;
-
 import com.segway.robot.algo.dts.PersonDetectListener;
 import com.segway.robot.algo.dts.PersonTrackingProfile;
 import com.segway.robot.algo.dts.PersonTrackingWithPlannerListener;
@@ -76,15 +76,23 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
             lastLook = 0;
         }
     }
+    public Surface getSurface() {
+        if (dts == null) {
+            return null;
+        }
+        return dts.getSurface();
+    }
 
     public synchronized void startTracking() {
         Log.d(TAG, String.format("startTracking threadId=%d", Thread.currentThread().getId()));
 
         if (dts == null && headPIDController == null) {
             dts = robotVision.getDTS();
+//            dts.setVideoSource(DTS.VideoSource.CAMERA);
+//            beginTracking();
             dts.setVideoSource(DTS.VideoSource.SURFACE);
 
-            robotCamera.start(dts.getSurface(), this);
+            robotCamera.start(this);
         }
     }
 

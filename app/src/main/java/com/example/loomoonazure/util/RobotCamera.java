@@ -45,7 +45,6 @@ public class RobotCamera {
     private String cameraId;
 
 //    private SurfaceTexture surfaceTexture;
-    private Surface dtsSurface;
     private RobotTracking robotTracking;
 
     private CameraCaptureSession captureSession;
@@ -80,7 +79,10 @@ public class RobotCamera {
         Log.d(TAG, String.format("createCameraPreviewSession threadId=%d", Thread.currentThread().getId()));
 
         try {
+            Thread.sleep(30000);
+
             //Surface surface = new Surface(surfaceTexture);
+            Surface dtsSurface = robotTracking.getSurface();
 
             previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             previewRequestBuilder.addTarget(dtsSurface);
@@ -118,6 +120,8 @@ public class RobotCamera {
             }, null);
         } catch (CameraAccessException e) {
             Log.d(TAG, "CameraAccessException", e);
+        } catch (InterruptedException e) {
+            Log.d(TAG, "InterruptedException", e);
         }
     }
 
@@ -303,7 +307,7 @@ public class RobotCamera {
         };
     }
 
-    public void start(Surface dtsSurface, RobotTracking robotTracking) {
+    public void start(RobotTracking robotTracking) {
         Log.d(TAG, String.format("start threadId=%d", Thread.currentThread().getId()));
 
         try {
@@ -341,7 +345,6 @@ public class RobotCamera {
 //                Size min = Collections.min(outputSizes, comparer);
 //
 //                surfaceTexture.setDefaultBufferSize(min.getWidth(), min.getHeight());
-                this.dtsSurface = dtsSurface;
                 this.robotTracking = robotTracking;
 
                 imageReader = ImageReader.newInstance(max.getWidth(), max.getHeight(), ImageFormat.JPEG, 2);
@@ -396,7 +399,6 @@ public class RobotCamera {
                 imageReader = null;
             }
 
-            dtsSurface = null;
             robotTracking = null;
         } catch (InterruptedException e) {
             Log.d(TAG, "InterruptedException", e);
