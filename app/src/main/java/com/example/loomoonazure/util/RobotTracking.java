@@ -88,9 +88,13 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
 
         if (dts == null && headPIDController == null) {
             dts = robotVision.getDTS();
+
 //            dts.setVideoSource(DTS.VideoSource.CAMERA);
+//            dts.start();
 //            beginTracking();
+
             dts.setVideoSource(DTS.VideoSource.SURFACE);
+            dts.start();
 
             robotCamera.start(this);
         }
@@ -100,7 +104,6 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
         Log.d(TAG, String.format("startTracking threadId=%d", Thread.currentThread().getId()));
 
         if (dts != null  && headPIDController == null) {
-            dts.start();
             dts.setPoseRecognitionEnabled(true);
 
             lastLook = 0;

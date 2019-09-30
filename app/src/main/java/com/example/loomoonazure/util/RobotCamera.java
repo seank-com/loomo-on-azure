@@ -79,8 +79,6 @@ public class RobotCamera {
         Log.d(TAG, String.format("createCameraPreviewSession threadId=%d", Thread.currentThread().getId()));
 
         try {
-            Thread.sleep(30000);
-
             //Surface surface = new Surface(surfaceTexture);
             Surface dtsSurface = robotTracking.getSurface();
 
@@ -120,8 +118,6 @@ public class RobotCamera {
             }, null);
         } catch (CameraAccessException e) {
             Log.d(TAG, "CameraAccessException", e);
-        } catch (InterruptedException e) {
-            Log.d(TAG, "InterruptedException", e);
         }
     }
 
