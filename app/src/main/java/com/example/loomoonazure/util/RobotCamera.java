@@ -3,6 +3,7 @@ package com.example.loomoonazure.util;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.ImageFormat;
+import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -44,7 +45,7 @@ public class RobotCamera {
     private Activity activity;
     private String cameraId;
 
-//    private SurfaceTexture surfaceTexture;
+    private SurfaceTexture surfaceTexture;
     private RobotTracking robotTracking;
 
     private CameraCaptureSession captureSession;
@@ -79,8 +80,12 @@ public class RobotCamera {
         Log.d(TAG, String.format("createCameraPreviewSession threadId=%d", Thread.currentThread().getId()));
 
         try {
-            //Surface surface = new Surface(surfaceTexture);
-            Surface dtsSurface = robotTracking.getSurface();
+            Surface dtsSurface;
+            if (robotTracking != null) {
+                dtsSurface = robotTracking.getSurface();
+            } else {
+                dtsSurface  = new Surface(surfaceTexture);
+            }
 
             previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             previewRequestBuilder.addTarget(dtsSurface);
@@ -105,7 +110,9 @@ public class RobotCamera {
                         that.previewRequest = that.previewRequestBuilder.build();
                         that.captureSession.setRepeatingRequest(that.previewRequest, that.captureCallback, that.backgroundHandler);
 
-                        robotTracking.beginTracking();
+                        if (robotTracking != null) {
+                            robotTracking.beginTracking();
+                        }
                     } catch (CameraAccessException e) {
                         Log.d(TAG, "CameraAccessException", e);
                     }
@@ -183,6 +190,8 @@ public class RobotCamera {
             state = STATE_PREVIEW;
             captureSession.setRepeatingRequest(previewRequest, captureCallback, backgroundHandler);
 
+            Robot robot = (Robot)activity;
+            robot.resumeMovement();
         } catch (CameraAccessException e) {
             Log.d(TAG, "CameraAccessException", e);
         }
@@ -199,7 +208,8 @@ public class RobotCamera {
 
         this.cameraOpenCloseLock = new Semaphore(1);
 
-//        this.surfaceTexture = new SurfaceTexture(10);
+        // get a surface texture ready, though we may not use it.
+        this.surfaceTexture = new SurfaceTexture(10);
 
         this.stateCallback = new CameraDevice.StateCallback() {
             @Override
@@ -338,10 +348,12 @@ public class RobotCamera {
                 CompareSizesByArea comparer = new CompareSizesByArea();
 
                 Size max = Collections.max(outputSizes, comparer);
-//                Size min = Collections.min(outputSizes, comparer);
-//
-//                surfaceTexture.setDefaultBufferSize(min.getWidth(), min.getHeight());
                 this.robotTracking = robotTracking;
+
+                if (robotTracking == null) {
+                    Size min = Collections.min(outputSizes, comparer);
+                    surfaceTexture.setDefaultBufferSize(min.getWidth(), min.getHeight());
+                }
 
                 imageReader = ImageReader.newInstance(max.getWidth(), max.getHeight(), ImageFormat.JPEG, 2);
                 imageReader.setOnImageAvailableListener(onImageAvailableListener, backgroundHandler);
@@ -365,6 +377,9 @@ public class RobotCamera {
     }
 
     public void takePicture() {
+        Robot robot = (Robot)activity;
+
+        robot.pauseMovement();
         lockFocus();
     }
 

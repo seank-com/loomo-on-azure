@@ -36,6 +36,8 @@ public class RobotConversation implements WakeupListener, RecognitionListener, T
     public synchronized void start() {
         if (!started) {
             try {
+                robotSpeaker.setVolume(50);
+
                 int recognitionLanguage = robotRecognizer.getLanguage();
                 if (recognitionLanguage == Languages.EN_US) {
                     if (!grammarInit) {
@@ -50,23 +52,16 @@ public class RobotConversation implements WakeupListener, RecognitionListener, T
                         helpingSlot.addWord("will you please");
 
                         Slot speakSlot = new Slot("speak", false);
-                        speakSlot.addWord("say");
                         speakSlot.addWord("tell");
                         speakSlot.addWord("tell us");
-                        speakSlot.addWord("tell us all");
                         speakSlot.addWord("tell me");
-                        speakSlot.addWord("tell them");
-                        speakSlot.addWord("tell him");
-                        speakSlot.addWord("tell her");
                         speakSlot.addWord("toggle");
 
                         Slot speakWhatSlot = new Slot("what", false);
-                        speakWhatSlot.addWord("hello");
-                        speakWhatSlot.addWord("goodbye");
                         speakWhatSlot.addWord("a joke");
-                        speakWhatSlot.addWord("the time");
                         speakWhatSlot.addWord("your status");
                         speakWhatSlot.addWord("debug mode");
+                        speakWhatSlot.addWord("monitor mode");
 
                         GrammarConstraint saySlotGrammar = new GrammarConstraint();
                         saySlotGrammar.setName("speak");
@@ -94,16 +89,12 @@ public class RobotConversation implements WakeupListener, RecognitionListener, T
                         moveSlot.addWord("come with me");
                         moveSlot.addWord("come with us");
                         moveSlot.addWord("follow me");
-                        moveSlot.addWord("move forward one foot");
-                        moveSlot.addWord("move forward two feet");
-                        moveSlot.addWord("move forward three feet");
-                        moveSlot.addWord("move forward four feet");
-                        moveSlot.addWord("move forward five feet");
-                        moveSlot.addWord("move forward six feet");
+                        moveSlot.addWord("move forward");
                         moveSlot.addWord("move back");
                         moveSlot.addWord("turn left");
                         moveSlot.addWord("turn right");
                         moveSlot.addWord("turn around");
+                        moveSlot.addWord("take a picture");
 
                         GrammarConstraint moveSlotGrammar = new GrammarConstraint();
                         moveSlotGrammar.setName("move");
@@ -159,6 +150,27 @@ public class RobotConversation implements WakeupListener, RecognitionListener, T
         }
     }
 
+    public void waitUntilFinishedSpeaking() {
+        Log.d(TAG, String.format("waitUntilFinishedSpeaking threadId=%d", Thread.currentThread().getId()));
+
+        boolean loop = true;
+        do {
+            synchronized(this){
+                loop = speaking;
+            }
+
+            if (loop == true) {
+                try {
+                    Thread.sleep(500);
+                }
+                catch (Exception e) {
+                    Log.e(TAG, "Exception sleeping", e);
+                }
+            }
+        } while (loop == true);
+    }
+
+
     // RecognitionListener
     @Override
     public void onRecognitionStart() {
@@ -172,15 +184,9 @@ public class RobotConversation implements WakeupListener, RecognitionListener, T
         Log.d(TAG, String.format("onRecognitionResult result=%s threadId=%d", result, Thread.currentThread().getId()));
 
         try {
-            if (result.contains("speak") || result.contains("tell")) {
-                if (result.contains("hello")) {
-                    speak("Greetings humans!");
-                } else if (result.contains("goodbye")) {
-                    speak("Goodbye, have fun, see you later, alligator!");
-                } else if (result.contains("joke")) {
+            if (result.contains("tell")) {
+                if (result.contains("joke")) {
                     speak("OK, here's a joke. I'm a weeble, I wobble, but I don't fall down.");
-                } else if (result.contains("time")) {
-                    speak("Do I look like a clock?");
                 } else if (result.contains("status")) {
                     speak(robot.getStatus());
                 }
@@ -193,37 +199,35 @@ public class RobotConversation implements WakeupListener, RecognitionListener, T
                     robot.setDebug(true);
                     speak("Debug mode is now on");
                 }
+            } else if (result.contains("toggle") && result.contains("monitor")) {
+                boolean mode = robot.getMonitor();
+                if (mode) {
+                    robot.setMonitor(false);
+                    speak("Monitor mode is now off");
+                } else {
+                    speak("Monitor mode is now on");
+                    waitUntilFinishedSpeaking();
+                    robot.setMonitor(true);
+                }
             } else if (result.contains("wait")) {
-                speak("OK, but I'll be keeping my eye on you");
+                speak("Acknowledged");
                 RobotAction ra = RobotAction.getTrack(Robot.TRACK_BEHAVIOR_WATCH);
                 robot.actionDo(ra);
             } else if (result.contains("come") || result.contains("follow")) {
-                speak("I'm right behind you");
+                speak("Acknowledged");
                 RobotAction ra = RobotAction.getTrack(Robot.TRACK_BEHAVIOR_FOLLOW);
                 robot.actionDo(ra);
             } else if (result.contains("move")) {
-                float distance = -1.0f;
-                if (result.contains("one")) {
-                    distance = 0.33f;
+                RobotAction ra;
+                if (result.contains("back")) {
+                    ra = RobotAction.getMovement(Robot.MOVEMENT_BEHAVIOR_MOVE_VELOCITY, -0.5f, 0);
+                    robot.actionDo(ra);
+                    return true;
+                } else {
+                    ra = RobotAction.getMovement(Robot.MOVEMENT_BEHAVIOR_MOVE_VELOCITY, 0.5f, 0);
+                    robot.actionDo(ra);
+                    return true;
                 }
-                else if (result.contains("two")) {
-                    distance = 0.66f;
-                }
-                else if (result.contains("three")) {
-                    distance = 1.0f;
-                }
-                else if (result.contains("four")) {
-                    distance = 1.33f;
-                }
-                else if (result.contains("five")) {
-                    distance = 1.66f;
-                }
-                else if (result.contains("six")) {
-                    distance = 2.0f;
-                }
-                speak("here goes nothing");
-                RobotAction ra = RobotAction.getMovement(Robot.MOVEMENT_BEHAVIOR_MOVE_TARGET, distance, 0);
-                robot.actionDo(ra);
             } else if (result.contains("turn")) {
                 float theta = 1.0f;
                 if (result.contains("right")) {
@@ -240,6 +244,8 @@ public class RobotConversation implements WakeupListener, RecognitionListener, T
                     robot.actionDo(ra);
                 }
                 robot.actionDo(ra);
+            } else if (result.contains("take a picture")) {
+                robot.takePicture();
             } else {
                 speak("You make no sense");
                 return false;

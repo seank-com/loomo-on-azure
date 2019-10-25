@@ -56,10 +56,15 @@ public interface Robot {
     void setPeopleDetected(int peopleCount);
     boolean getDebug();
     void setDebug(boolean debug);
+    boolean getMonitor();
+    void setMonitor(boolean monitor);
 
     // higher order functions
     void actionSay(String phrase);
     void actionDo(RobotAction action);
+    void takePicture();
+    void pauseMovement();
+    void resumeMovement();
 
     // Other
     void establishSocketConnection(String server, int port, int cadence);

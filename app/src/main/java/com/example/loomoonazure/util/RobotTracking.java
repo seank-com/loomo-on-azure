@@ -68,11 +68,11 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
         if (lastLook == 1) {
             headControlHandler.smoothModeTarget(0,0.7f);
         } else if (lastLook == 2) {
-            headControlHandler.smoothModeTarget(-1.3f,0.7f);
+            headControlHandler.smoothModeTarget(-0.8f,0.7f);
         } else if (lastLook == 3) {
             headControlHandler.smoothModeTarget(0,0.7f);
         } else {
-            headControlHandler.smoothModeTarget(1.3f,0.7f);
+            headControlHandler.smoothModeTarget(0.8f,0.7f);
             lastLook = 0;
         }
     }
@@ -89,14 +89,15 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
         if (dts == null && headPIDController == null) {
             dts = robotVision.getDTS();
 
-//            dts.setVideoSource(DTS.VideoSource.CAMERA);
-//            dts.start();
-//            beginTracking();
-
-            dts.setVideoSource(DTS.VideoSource.SURFACE);
-            dts.start();
-
-            robotCamera.start(this);
+            if (robotCamera == null) {
+                dts.setVideoSource(DTS.VideoSource.CAMERA);
+                dts.start();
+                beginTracking();
+            } else {
+                dts.setVideoSource(DTS.VideoSource.SURFACE);
+                dts.start();
+                robotCamera.start(this);
+            }
         }
     }
 
@@ -159,7 +160,9 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
             headPIDController = null;
         }
 
-        robotCamera.stop();
+        if (robotCamera != null) {
+            robotCamera.stop();
+        }
     }
 
     // PersonDetectListener
