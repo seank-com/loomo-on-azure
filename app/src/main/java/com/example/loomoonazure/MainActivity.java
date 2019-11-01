@@ -17,6 +17,7 @@ import com.example.loomoonazure.util.AzureIoT;
 import com.example.loomoonazure.util.MessageFromBindState;
 import com.example.loomoonazure.util.Robot;
 import com.example.loomoonazure.util.RobotAction;
+import com.example.loomoonazure.util.RobotCamera;
 import com.example.loomoonazure.util.RobotConversation;
 import com.example.loomoonazure.util.RobotTracking;
 import com.example.loomoonazure.util.TeleOps;
@@ -36,6 +37,7 @@ import com.segway.robot.sdk.voice.Recognizer;
 import com.segway.robot.sdk.voice.Speaker;
 
 import java.util.LinkedList;
+import java.util.Random;
 
 public class MainActivity
         extends AppCompatActivity
@@ -95,7 +97,8 @@ public class MainActivity
 
     private RobotConversation robotConversation;
     private RobotTracking robotTracking;
-
+    private RobotCamera robotCamera;
+    
     private Handler handler;
 
     private int cadence = 5;
@@ -106,9 +109,17 @@ public class MainActivity
 
     private int peopleDetected = 0;
     private int messages = 0;
-    private boolean debug = true;
+    private boolean debug = false;
+    private boolean monitor = false;
 
-    private boolean intro = false;
+    private boolean intro = true;
+    private boolean canMove = true;
+
+    private Random rand = new Random();
+    //
+    // TEST TEST TEST TEST TEST
+    //
+    private boolean integrateCameraWithTracking = true;
 
     RobotAction currentAction = null;
     RobotAction resumeAction = null;
@@ -129,7 +140,12 @@ public class MainActivity
 
         handler = new Handler(this);
         robotConversation = new RobotConversation(this);
-        robotTracking = new RobotTracking(this, this, this);
+        robotCamera = new RobotCamera(this);
+        if (integrateCameraWithTracking) {
+        robotTracking = new RobotTracking(this, robotCamera, this, this);
+        } else {
+            robotTracking = new RobotTracking(this, null, this, this);
+        }
 
         robotBase = Base.getInstance();
         robotEmoji = Emoji.getInstance();
@@ -190,6 +206,7 @@ public class MainActivity
 
         robotTracking.stopFollowing();
         robotTracking.stopTracking();
+        robotCamera.stop();
         robotConversation.stop();
 
         robotBase.unbindService();
@@ -210,6 +227,11 @@ public class MainActivity
                 robotEmoji.setBaseControlHandler(this);
                 robotEmoji.setHeadControlHandler(this);
 
+                // robotTracking.startTracking calls robotCamera.start now
+                if (integrateCameraWithTracking == false) {
+                    robotCamera.start(null);
+                }
+
                 robotConversation.start();
                 RobotAction ra = RobotAction.getTrack(Robot.TRACK_BEHAVIOR_WATCH);
                 actionDo(ra);
@@ -218,13 +240,17 @@ public class MainActivity
 
         if (currentAction != null) {
             if (!isConnected) {
+                if (debug) {
                 actionSay("Offline systems operational.");
+                }
             } else {
                 timeout = cadence * 1000;
                 handler.sendEmptyMessageDelayed(ACTION_SEND_TELEMETRY, timeout);
+                if (debug) {
                 actionSay("All systems operational.");
             }
         }
+    }
     }
 
     // Handler.Callback
@@ -235,7 +261,9 @@ public class MainActivity
             case SERVICE_BIND_BASE:
                 Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_BASE threadId=%d", tid));
                 isBindBase = true;
+                if (debug) {
                 actionSay("Propulsion systems initialized.");
+                }
                 initRobot();
                 break;
             case SERVICE_UNBIND_BASE:
@@ -245,7 +273,9 @@ public class MainActivity
             case SERVICE_BIND_HEAD:
                 Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_HEAD threadId=%d", tid));
                 isBindHead = true;
+                if (debug) {
                 actionSay("Degrees of freedom, check!");
+                }
                 initRobot();
                 break;
             case SERVICE_UNBIND_HEAD:
@@ -254,7 +284,9 @@ public class MainActivity
                 break;
             case SERVICE_BIND_RECOGNIZER:
                 Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_RECOGNIZER threadId=%d", tid));
+                if (debug) {
                 actionSay("Auditory systems initialized.");
+                }
                 isBindRecognizer = true;
                 initRobot();
                 break;
@@ -264,7 +296,9 @@ public class MainActivity
                 break;
             case SERVICE_BIND_SENSOR:
                 Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_SENSOR threadId=%d", tid));
+                if (debug) {
                 actionSay("Feelings, check!");
+                }
                 isBindSensor = true;
                 initRobot();
                 break;
@@ -274,7 +308,9 @@ public class MainActivity
                 break;
             case SERVICE_BIND_SPEAKER:
                 Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_SPEAKER threadId=%d", tid));
+                if (debug) {
                 actionSay("Vocalization systems initialized.");
+                }
                 isBindSpeaker = true;
                 initRobot();
                 break;
@@ -284,7 +320,9 @@ public class MainActivity
                 break;
             case SERVICE_BIND_VISION:
                 Log.d(TAG, String.format("handleMessage what=SERVICE_BIND_VISION threadId=%d", tid));
+                if (debug) {
                 actionSay("Perception systems initialized.");
+                }
                 isBindVision = true;
                 initRobot();
                 break;
@@ -310,13 +348,17 @@ public class MainActivity
                 break;
             case CONNECTION_OPEN:
                 Log.d(TAG, String.format("handleMessage what=CONNECTION_OPEN threadId=%d", tid));
+                if (debug) {
                 actionSay("Connection to cloud, check!");
+                }
                 isConnected = true;
                 initRobot();
                 break;
             case CONNECTION_CLOSED:
                 Log.d(TAG, String.format("handleMessage what=CONNECTION_CLOSED threadId=%d", tid));
+                if (debug) {
                 actionSay("Connection to cloud has been lost");
+                }
                 isConnected = false;
                 break;
             case ACTION_SEND_TELEMETRY:
@@ -345,7 +387,7 @@ public class MainActivity
                 doNextAction(Robot.ACTION_TYPE_MOVE);
                 break;
             case ACTION_LOOK:
-                Log.d(TAG, String.format("handleMessage what=ACTION_MOVE threadId=%d", tid));
+                Log.d(TAG, String.format("handleMessage what=ACTION_LOOK threadId=%d", tid));
                 doNextAction(Robot.ACTION_TYPE_LOOK);
                 break;
             default:
@@ -363,15 +405,16 @@ public class MainActivity
             case R.id.face:
                 //intent = new Intent(this, DebugActivity.class);
                 //startActivity(intent);
-                if (currentAction != null && currentAction.getActionType() == Robot.ACTION_TYPE_TRACK) {
-                    int newBehavior = Robot.TRACK_BEHAVIOR_WATCH;
-                    if (currentAction.getBehavior() == Robot.TRACK_BEHAVIOR_WATCH) {
-                        newBehavior = Robot.TRACK_BEHAVIOR_FOLLOW;
-                    }
-
-                    RobotAction ra = RobotAction.getTrack(newBehavior);
-                    actionDo(ra);
-                }
+//                if (currentAction != null && currentAction.getActionType() == Robot.ACTION_TYPE_TRACK) {
+//                    int newBehavior = Robot.TRACK_BEHAVIOR_WATCH;
+//                    if (currentAction.getBehavior() == Robot.TRACK_BEHAVIOR_WATCH) {
+//                        newBehavior = Robot.TRACK_BEHAVIOR_FOLLOW;
+//                    }
+//
+//                    RobotAction ra = RobotAction.getTrack(newBehavior);
+//                    actionDo(ra);
+//                }
+//                robotCamera.takePicture();
                 break;
             default:
                 break;
@@ -398,15 +441,19 @@ public class MainActivity
 
     // Emoji BaseControlHandler
     @Override
-    public void setLinearVelocity(float velocity) {
+    public synchronized void setLinearVelocity(float velocity) {
         Log.d(TAG, String.format("setLinearVelocity threadId=%d", Thread.currentThread().getId()));
+        if (canMove) {
         robotBase.setLinearVelocity(velocity);
+    }
     }
 
     @Override
-    public void setAngularVelocity(float velocity) {
+    public synchronized void setAngularVelocity(float velocity) {
         Log.d(TAG, String.format("setAngularVelocity threadId=%d", Thread.currentThread().getId()));
+        if (canMove) {
         robotBase.setAngularVelocity(velocity);
+    }
     }
 
     @Override
@@ -435,15 +482,19 @@ public class MainActivity
     }
 
     @Override
-    public void setWorldPitch(float angle) {
+    public synchronized void setWorldPitch(float angle) {
         Log.d(TAG, String.format("setWorldPitch threadId=%d", Thread.currentThread().getId()));
+        if (canMove) {
         robotHead.setWorldPitch(angle);
+    }
     }
 
     @Override
-    public void setWorldYaw(float angle) {
+    public synchronized void setWorldYaw(float angle) {
         Log.d(TAG, String.format("setWorldYaw threadId=%d", Thread.currentThread().getId()));
+        if (canMove) {
         robotHead.setWorldYaw(angle);
+    }
     }
 
     @Override
@@ -460,18 +511,22 @@ public class MainActivity
 
     // RobotTracking.BaseControlHandler
     @Override
-    public void rawModeMove(float linear, float angular) {
+    public synchronized void rawModeMove(float linear, float angular) {
         Log.d(TAG, String.format("moveVelocity threadId=%d", Thread.currentThread().getId()));
+        if (canMove) {
         robotBase.setControlMode(Base.CONTROL_MODE_RAW);
         robotBase.setLinearVelocity(linear);
         robotBase.setAngularVelocity(angular);
     }
+    }
 
     @Override
-    public void targetModeMove(float distance, float angle) {
+    public synchronized void targetModeMove(float distance, float angle) {
         Log.d(TAG, String.format("moveTarget threadId=%d", Thread.currentThread().getId()));
+        if (canMove) {
         robotBase.setControlMode(Base.CONTROL_MODE_FOLLOW_TARGET);
         robotBase.updateTarget(distance, angle);
+    }
     }
 
     // RobotTracking.HeadControlHandler
@@ -488,25 +543,29 @@ public class MainActivity
     }
 
     @Override
-    public void setHeadYawVelocity(float velocity) {
+    public synchronized void setHeadYawVelocity(float velocity) {
         Log.d(TAG, String.format("setHeadYawVelocity threadId=%d", Thread.currentThread().getId()));
-//        robotHead.setMode(Head.MODE_SMOOTH_TACKING);
+        if (canMove) {
         robotHead.setYawAngularVelocity(velocity);
     }
-
-    @Override
-    public void setHeadPitchVelocity(float velocity) {
-        Log.d(TAG, String.format("setHeadPitchVelocity threadId=%d", Thread.currentThread().getId()));
- //       robotHead.setMode(Head.MODE_SMOOTH_TACKING);
-        robotHead.setPitchAngularVelocity(velocity);
     }
 
     @Override
-    public void smoothModeTarget(float yaw, float pitch) {
+    public synchronized void setHeadPitchVelocity(float velocity) {
+        Log.d(TAG, String.format("setHeadPitchVelocity threadId=%d", Thread.currentThread().getId()));
+        if (canMove) {
+        robotHead.setPitchAngularVelocity(velocity);
+    }
+    }
+
+    @Override
+    public synchronized void smoothModeTarget(float yaw, float pitch) {
         Log.d(TAG, String.format("smoothModeTarget threadId=%d", Thread.currentThread().getId()));
+        if (canMove) {
         robotHead.setMode(Head.MODE_SMOOTH_TACKING);
         robotHead.setWorldYaw(yaw);
         robotHead.setWorldPitch(pitch);
+    }
     }
 
     @Override
@@ -520,15 +579,45 @@ public class MainActivity
     public synchronized String getStatus() {
         Log.d(TAG, String.format("getStatus threadId=%d", Thread.currentThread().getId()));
 
-        String iSee;
-        if (peopleDetected == 0) {
-            iSee = "I am all alone";
-        } else if (peopleDetected == 1) {
-            iSee = "I only see one person";
-        } else {
-            iSee = String.format("I see %d people");
+        StringBuilder sb = new StringBuilder();
+
+        if (isBindBase) {
+            sb.append(" Propulsion systems are go. ");
         }
-        return String.format("I have sent %d messages, %s, and my head pitch is %f radians", messages, iSee, robotHead.getHeadJointPitch().getAngle());
+        if (isBindHead) {
+            sb.append(" Degrees of freedom, check!");
+        }
+        if (isBindRecognizer) {
+            sb.append(" Auditory systems, check! ");
+        }
+        if (isBindSensor) {
+            sb.append(" Feelings, check!");
+        }
+        if (isBindSpeaker) {
+            sb.append(" Vocalization systems. Silly Sally swiftly shooed seven silly sheep. Check!");
+        }
+        if (isBindVision) {
+            sb.append(" Perception systems, perceiving.");
+        }
+        if (isConnected) {
+            sb.append(" I'm connected to the cloud.");
+        } else {
+            sb.append(" Connection to cloud has been lost.");
+        }
+
+        sb.append(String.format(" I have sent %d messages.", messages));
+
+        if (peopleDetected == 0) {
+            sb.append(" I am all alone");
+        } else if (peopleDetected == 1) {
+            sb.append(" I only see one person");
+        } else {
+            sb.append(String.format(" I see %d people", peopleDetected));
+        }
+
+        sb.append(String.format(" My head pitch is %f radians.", robotHead.getHeadJointPitch().getAngle()));
+
+        return sb.toString();
     }
 
     @Override
@@ -595,20 +684,44 @@ public class MainActivity
 
         if (peopleDetected != peopleCount) {
             peopleDetected = peopleCount;
-            if (debug) {
+            if (monitor == true) {
                 if (peopleDetected == 0) {
-
-                    actionSay("I'm all alone.");
-                    intro = false;
+                    actionSay("hmmmm");
+                    //intro = false;
                 } else {
                     if (peopleDetected > 1) {
-                        actionSay(String.format("I see %d people", peopleDetected));
+                        actionSay("Hi everyone!");
+                        canMove = false;
+//                        robotConversation.waitUntilFinishedSpeaking();
+                        robotCamera.takePicture();
                     } else {
                         if (!intro) {
-                            actionSay("Hello, my name is Loomo. Will you be my friend?");
-                            intro = true;
+                            actionSay("Hello, my name is Loomo.");
+//                            robotConversation.waitUntilFinishedSpeaking();
+                            robotCamera.takePicture();
+                            //intro = true;
                         } else {
-                            actionSay("I think we're alone now.");
+                            switch (rand.nextInt(5)) {
+                                case 0:
+                                    actionSay("Hi!");
+                                    break;
+                                case 1:
+                                    actionSay("Good to see you!");
+                                    break;
+                                case 2:
+                                    actionSay("Salutations!");
+                                    break;
+                                case 3:
+                                    actionSay("Good day!");
+                                    break;
+                                default:
+                                case 4:
+                                    actionSay("Greetings!");
+                                    break;
+                            }
+                            canMove = false;
+//                            robotConversation.waitUntilFinishedSpeaking();
+                            robotCamera.takePicture();
                         }
                     }
                 }
@@ -629,6 +742,24 @@ public class MainActivity
     }
 
     @Override
+    public synchronized boolean getMonitor() {
+        Log.d(TAG, String.format("getMonitor threadId=%d", Thread.currentThread().getId()));
+        return monitor;
+    }
+
+    @Override
+    public synchronized void setMonitor(boolean monitor) {
+        Log.d(TAG, String.format("setMonitor threadId=%d", Thread.currentThread().getId()));
+        this.monitor = monitor;
+        if (monitor) {
+            peopleDetected = 0;
+            robotConversation.setVolume(80);
+        } else {
+            robotConversation.setVolume(50);
+        }
+    }
+
+    @Override
     public void actionSay(String phrase) {
         Log.d(TAG, String.format("actionSay threadId=%d", Thread.currentThread().getId()));
         robotConversation.speak(phrase);
@@ -640,6 +771,45 @@ public class MainActivity
         actions.add(action);
         Log.d(TAG, String.format("DEBUG actionDo actions.size()=%d threadId=%d", actions.size(), Thread.currentThread().getId()));
         doNextAction(0);
+    }
+
+    @Override
+    public synchronized void takePicture() {
+        Log.d(TAG, String.format("takePicture threadId=%d", Thread.currentThread().getId()));
+        if (peopleDetected > 0) {
+        switch (rand.nextInt(4)) {
+            case 0:
+                    actionSay("How are you doing?");
+                break;
+            case 1:
+                    actionSay("Beautiful day, isn't it?");
+                break;
+            case 2:
+                    actionSay("What have you been up to?");
+                break;
+            case 3:
+            default:
+                    actionSay("How's it going?");
+                break;
+        }
+//            robotConversation.waitUntilFinishedSpeaking();
+        robotCamera.takePicture();
+    }
+    }
+
+    @Override
+    public synchronized void pauseMovement() {
+        canMove = false;
+        try {
+            Thread.sleep(500);
+        } catch (Exception e) {
+            Log.e(TAG, String.format("DEBUG pauseMovement Exception sleeping threadId=%d", Thread.currentThread().getId()), e);
+        }
+    }
+
+    @Override
+    public synchronized void resumeMovement() {
+        canMove = true;
     }
 
     private synchronized void doNextAction(int lastActionType)
@@ -667,13 +837,22 @@ public class MainActivity
 
         // if we were idle, stop it
         if (currentAction != null && currentAction.getActionType() == Robot.ACTION_TYPE_TRACK) {
-            if (nextAction.getActionType() != Robot.ACTION_TYPE_TRACK) {
+            int nextActionType = nextAction.getActionType();
+            if (nextActionType != Robot.ACTION_TYPE_TRACK) {
                 Log.d(TAG, String.format("DEBUG doNextAction stopTracking threadId=%d", Thread.currentThread().getId()));
                 if (currentAction.getBehavior() == Robot.TRACK_BEHAVIOR_FOLLOW) {
                     robotTracking.stopFollowing();
                 }
                 robotTracking.stopTracking();
                 resumeAction = currentAction;
+            } else {
+                int currentBehavior = currentAction.getBehavior();
+                int nextBehavior = nextAction.getBehavior();
+                if (currentBehavior != nextBehavior) {
+                    if (nextBehavior == Robot.TRACK_BEHAVIOR_WATCH) {
+                        robotTracking.stopFollowing();
+                    }
+                }
             }
         }
 
@@ -689,6 +868,7 @@ public class MainActivity
                 break;
             case Robot.ACTION_TYPE_LOOK:
                 Log.d(TAG, String.format("DEBUG doNextAction actionType=ACTION_TYPE_LOOK threadId=%d", Thread.currentThread().getId()));
+                if (canMove) {
                 arg1 = currentAction.getYaw();
                 arg2 = currentAction.getPitch();
                 if (arg1 != Float.NaN || arg2 != Float.NaN) {
@@ -703,14 +883,15 @@ public class MainActivity
                 }
                 try {
                     Thread.sleep(500);
-                }
-                catch (Exception e) {
+                    } catch (Exception e) {
                     Log.e(TAG, String.format("DEBUG doNextAction Exception sleeping threadId=%d", Thread.currentThread().getId()), e);
+                }
                 }
                 handler.sendEmptyMessage(ACTION_LOOK);
                 break;
             case Robot.ACTION_TYPE_MOVE:
                 Log.d(TAG, String.format("DEBUG doNextAction actionType=ACTION_TYPE_MOVE threadId=%d", Thread.currentThread().getId()));
+                if (canMove) {
                 arg1 = currentAction.getLinear();
                 arg2 = currentAction.getAngular();
                 if (nextAction.getBehavior() == Robot.MOVEMENT_BEHAVIOR_MOVE_VELOCITY) {
@@ -724,8 +905,7 @@ public class MainActivity
                             robotBase.setAngularVelocity(arg2);
                         }
                     }
-                }
-                else {
+                    } else {
                     if (arg1 != Float.NaN && arg2 != Float.NaN) {
                         Log.d(TAG, String.format("DEBUG doNextAction valid move data threadId=%d", Thread.currentThread().getId()));
                         robotBase.setControlMode(Base.CONTROL_MODE_FOLLOW_TARGET);
@@ -734,9 +914,9 @@ public class MainActivity
                 }
                 try {
                     Thread.sleep(500);
+                    } catch (Exception e) {
+                        Log.e(TAG, String.format("DEBUG doNextAction Exception sleeping threadId=%d", Thread.currentThread().getId()), e);
                 }
-                catch (Exception e) {
-                    Log.e(TAG, String.format("DEBUG doNextAction Exception sleeping threadId=%d", Thread.currentThread().getId()), e);
                 }
                 handler.sendEmptyMessage(ACTION_MOVE);
                 break;

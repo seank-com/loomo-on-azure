@@ -1,10 +1,10 @@
 package com.example.loomoonazure.util;
 
 import android.util.Log;
+import android.view.Surface;
 
 import com.segway.robot.algo.dts.BaseControlCommand;
 import com.segway.robot.algo.dts.DTSPerson;
-
 import com.segway.robot.algo.dts.PersonDetectListener;
 import com.segway.robot.algo.dts.PersonTrackingProfile;
 import com.segway.robot.algo.dts.PersonTrackingWithPlannerListener;
@@ -35,7 +35,7 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
 
     private Vision robotVision;
 
-    private static final int TIME_OUT = 10 * 1000;
+    private static final int TIME_OUT = 3000;
 
     private DTS dts = null;
     private HeadPIDController headPIDController = null;
@@ -43,16 +43,18 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
     private long startTime = System.currentTimeMillis();
 
     private Robot robot;
+    private RobotCamera robotCamera;
     private BaseControlHandler baseControlHandler;
     private HeadControlHandler headControlHandler;
 
     private Timer monitor;
     private int lastLook;
 
-    public RobotTracking(Robot robot, BaseControlHandler baseControlHandler, HeadControlHandler headControlHandler) {
+    public RobotTracking(Robot robot, RobotCamera robotCamera, BaseControlHandler baseControlHandler, HeadControlHandler headControlHandler) {
         Log.d(TAG, String.format("constructor threadId=%d", Thread.currentThread().getId()));
 
         this.robot = robot;
+        this.robotCamera = robotCamera;
         this.baseControlHandler = baseControlHandler;
         this.headControlHandler = headControlHandler;
 
@@ -63,16 +65,20 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
         Log.d(TAG, String.format("resetHead threadId=%d", Thread.currentThread().getId()));
 
         lastLook += 1;
-        if (lastLook == 1) {
-            headControlHandler.smoothModeTarget(0,0.7f);
-        } else if (lastLook == 2) {
-            headControlHandler.smoothModeTarget(-1.3f,0.7f);
-        } else if (lastLook == 3) {
-            headControlHandler.smoothModeTarget(0,0.7f);
-        } else {
-            headControlHandler.smoothModeTarget(1.3f,0.7f);
-            lastLook = 0;
+        float yaw;
+        switch(lastLook) {
+            case  1: yaw =    0f; break;
+            case  2: yaw =  0.8f; break;
+            case  3: yaw =    0f; break;
+            default: yaw = -0.8f; lastLook = 0; break;
         }
+        headControlHandler.smoothModeTarget(yaw,0.7f);
+    }
+    public Surface getSurface() {
+        if (dts == null) {
+            return null;
+        }
+        return dts.getSurface();
     }
 
     public synchronized void startTracking() {
@@ -80,9 +86,23 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
 
         if (dts == null && headPIDController == null) {
             dts = robotVision.getDTS();
-            dts.setVideoSource(DTS.VideoSource.CAMERA);
 
-            dts.start();
+            if (robotCamera == null) {
+                dts.setVideoSource(DTS.VideoSource.CAMERA);
+                dts.start();
+                beginTracking();
+            } else {
+                dts.setVideoSource(DTS.VideoSource.SURFACE);
+                dts.start();
+                robotCamera.start(this);
+            }
+        }
+    }
+
+    public synchronized void beginTracking() {
+        Log.d(TAG, String.format("startTracking threadId=%d", Thread.currentThread().getId()));
+
+        if (dts != null  && headPIDController == null) {
             dts.setPoseRecognitionEnabled(true);
 
             lastLook = 0;
@@ -97,7 +117,7 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
 
             if (monitor == null) {
                 monitor = new Timer();
-                monitor.schedule(this, 5000, 5000);
+                monitor.schedule(this, 500, 500);
             }
         }
     }
@@ -136,6 +156,10 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
         if (headPIDController != null) {
             headPIDController.stop();
             headPIDController = null;
+        }
+
+        if (robotCamera != null) {
+            robotCamera.stop();
         }
     }
 
