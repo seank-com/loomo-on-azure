@@ -69,6 +69,8 @@ public class RobotCamera {
         @Override
         public int compare(Size lhs, Size rhs) {
             // We cast here to ensure the multiplications won't overflow
+            Log.d(TAG, String.format("CompareSizesByArea %dx%d - %dx%d", lhs.getWidth(), lhs.getHeight(), rhs.getWidth(), rhs.getHeight()));
+
             return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
                     (long) rhs.getWidth() * rhs.getHeight());
         }
@@ -103,8 +105,16 @@ public class RobotCamera {
                     // When the session is ready, we start displaying the preview.
                     that.captureSession = cameraCaptureSession;
                     try {
+                        // Fast Pictures
+                        that.previewRequestBuilder.set(CaptureRequest.JPEG_QUALITY, (byte)70);
+                        that.previewRequestBuilder.set(CaptureRequest.CONTROL_EFFECT_MODE, CaptureRequest.CONTROL_EFFECT_MODE_OFF);
+                        that.previewRequestBuilder.set(CaptureRequest.CONTROL_AE_ANTIBANDING_MODE, CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_OFF);
+                        that.previewRequestBuilder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_FLUORESCENT);
+                        that.previewRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF);
+
                         // Auto focus should be continuous for camera preview.
                         that.previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+
 
                         // Finally, we start displaying the camera preview.
                         that.previewRequest = that.previewRequestBuilder.build();
@@ -243,7 +253,8 @@ public class RobotCamera {
             public void onImageAvailable(ImageReader reader) {
                 Log.d(TAG, String.format("onImageAvailable threadId=%d", Thread.currentThread().getId()));
                 that.photoCount += 1;
-                that.backgroundHandler.post(new ImagePoster(reader.acquireNextImage(), that.photoCount));
+                Robot robot = (Robot)that.activity;
+                that.backgroundHandler.post(new ImagePoster(reader.acquireNextImage(), robot));
             }
         };
 
@@ -348,14 +359,17 @@ public class RobotCamera {
                 CompareSizesByArea comparer = new CompareSizesByArea();
 
                 Size max = Collections.max(outputSizes, comparer);
+                Size min = Collections.min(outputSizes, comparer);
+
+                Size desired = new Size(1920, 1080);
+
                 this.robotTracking = robotTracking;
 
                 if (robotTracking == null) {
-                    Size min = Collections.min(outputSizes, comparer);
                     surfaceTexture.setDefaultBufferSize(min.getWidth(), min.getHeight());
                 }
 
-                imageReader = ImageReader.newInstance(max.getWidth(), max.getHeight(), ImageFormat.JPEG, 2);
+                imageReader = ImageReader.newInstance(desired.getWidth(), desired.getHeight(), ImageFormat.JPEG, 2);
                 imageReader.setOnImageAvailableListener(onImageAvailableListener, backgroundHandler);
 
                 this.cameraId = cameraId;

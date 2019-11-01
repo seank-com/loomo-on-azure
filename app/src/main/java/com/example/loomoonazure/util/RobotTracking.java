@@ -35,7 +35,7 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
 
     private Vision robotVision;
 
-    private static final int TIME_OUT = 10 * 1000;
+    private static final int TIME_OUT = 3000;
 
     private DTS dts = null;
     private HeadPIDController headPIDController = null;
@@ -65,16 +65,14 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
         Log.d(TAG, String.format("resetHead threadId=%d", Thread.currentThread().getId()));
 
         lastLook += 1;
-        if (lastLook == 1) {
-            headControlHandler.smoothModeTarget(0,0.7f);
-        } else if (lastLook == 2) {
-            headControlHandler.smoothModeTarget(-0.8f,0.7f);
-        } else if (lastLook == 3) {
-            headControlHandler.smoothModeTarget(0,0.7f);
-        } else {
-            headControlHandler.smoothModeTarget(0.8f,0.7f);
-            lastLook = 0;
+        float yaw;
+        switch(lastLook) {
+            case  1: yaw =    0f; break;
+            case  2: yaw =  0.8f; break;
+            case  3: yaw =    0f; break;
+            default: yaw = -0.8f; lastLook = 0; break;
         }
+        headControlHandler.smoothModeTarget(yaw,0.7f);
     }
     public Surface getSurface() {
         if (dts == null) {
@@ -119,7 +117,7 @@ public class RobotTracking extends TimerTask implements HeadPIDController.HeadCo
 
             if (monitor == null) {
                 monitor = new Timer();
-                monitor.schedule(this, 5000, 5000);
+                monitor.schedule(this, 500, 500);
             }
         }
     }

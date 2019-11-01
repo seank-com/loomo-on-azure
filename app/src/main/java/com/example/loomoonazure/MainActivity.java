@@ -692,12 +692,12 @@ public class MainActivity
                     if (peopleDetected > 1) {
                         actionSay("Hi everyone!");
                         canMove = false;
-                        robotConversation.waitUntilFinishedSpeaking();
+//                        robotConversation.waitUntilFinishedSpeaking();
                         robotCamera.takePicture();
                     } else {
                         if (!intro) {
                             actionSay("Hello, my name is Loomo.");
-                            robotConversation.waitUntilFinishedSpeaking();
+//                            robotConversation.waitUntilFinishedSpeaking();
                             robotCamera.takePicture();
                             //intro = true;
                         } else {
@@ -720,7 +720,7 @@ public class MainActivity
                                     break;
                             }
                             canMove = false;
-                            robotConversation.waitUntilFinishedSpeaking();
+//                            robotConversation.waitUntilFinishedSpeaking();
                             robotCamera.takePicture();
                         }
                     }
@@ -753,6 +753,9 @@ public class MainActivity
         this.monitor = monitor;
         if (monitor) {
             peopleDetected = 0;
+            robotConversation.setVolume(80);
+        } else {
+            robotConversation.setVolume(50);
         }
     }
 
@@ -771,25 +774,27 @@ public class MainActivity
     }
 
     @Override
-    public void takePicture() {
+    public synchronized void takePicture() {
         Log.d(TAG, String.format("takePicture threadId=%d", Thread.currentThread().getId()));
+        if (peopleDetected > 0) {
         switch (rand.nextInt(4)) {
             case 0:
-                actionSay("Say cheese.");
+                    actionSay("How are you doing?");
                 break;
             case 1:
-                actionSay("Watch the birdie.");
+                    actionSay("Beautiful day, isn't it?");
                 break;
             case 2:
-                actionSay("Smile.");
+                    actionSay("What have you been up to?");
                 break;
             case 3:
             default:
-                actionSay("On 3, 1, 2, 3.");
+                    actionSay("How's it going?");
                 break;
         }
-        robotConversation.waitUntilFinishedSpeaking();
+//            robotConversation.waitUntilFinishedSpeaking();
         robotCamera.takePicture();
+    }
     }
 
     @Override

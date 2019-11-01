@@ -170,6 +170,15 @@ public class RobotConversation implements WakeupListener, RecognitionListener, T
         } while (loop == true);
     }
 
+    public void setVolume(int level) {
+        Log.d(TAG, String.format("setVolume threadId=%d", Thread.currentThread().getId()));
+        try {
+            robotSpeaker.setVolume(level);
+        }
+        catch (Exception e) {
+            Log.e(TAG, "Exception setting volume", e);
+        }
+    }
 
     // RecognitionListener
     @Override
