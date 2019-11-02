@@ -1,0 +1,47 @@
+[
+  {
+    "faceId": "f52fc27b-857c-4b80-99b1-acee520931aa",
+    "faceRectangle": {
+      "top": 957,
+      "left": 1584,
+      "width": 212,
+      "height": 212
+    },
+    "faceAttributes": {
+      "headPose": {
+        "pitch": 8.4,
+        "roll": 1.7,
+        "yaw": -2.5
+      },
+      "gender": "female",
+      "age": 24,
+      "emotion": {
+        "anger": 0,
+        "contempt": 0,
+        "disgust": 0,
+        "fear": 0,
+        "happiness": 0.998,
+        "neutral": 0.002,
+        "sadness": 0,
+        "surprise": 0
+      },
+      "blur": {
+        "blurLevel": "low",
+        "value": 0.22
+      },
+      "exposure": {
+        "exposureLevel": "goodExposure",
+        "value": 0.59
+      },
+      "noise": {
+        "noiseLevel": "low",
+        "value": 0.07
+      },
+      "occlusion": {
+        "foreheadOccluded": false,
+        "eyeOccluded": false,
+        "mouthOccluded": false
+      }
+    }
+  }
+]

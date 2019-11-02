@@ -1,0 +1,47 @@
+[
+  {
+    "faceId": "978ea2b0-39ad-4f2f-b40e-8c70164cae36",
+    "faceRectangle": {
+      "top": 1238,
+      "left": 2178,
+      "width": 152,
+      "height": 152
+    },
+    "faceAttributes": {
+      "headPose": {
+        "pitch": 13.7,
+        "roll": -11.1,
+        "yaw": -1
+      },
+      "gender": "male",
+      "age": 47,
+      "emotion": {
+        "anger": 0.009,
+        "contempt": 0,
+        "disgust": 0,
+        "fear": 0,
+        "happiness": 0.156,
+        "neutral": 0.83,
+        "sadness": 0.003,
+        "surprise": 0.001
+      },
+      "blur": {
+        "blurLevel": "medium",
+        "value": 0.68
+      },
+      "exposure": {
+        "exposureLevel": "overExposure",
+        "value": 0.88
+      },
+      "noise": {
+        "noiseLevel": "medium",
+        "value": 0.43
+      },
+      "occlusion": {
+        "foreheadOccluded": false,
+        "eyeOccluded": false,
+        "mouthOccluded": true
+      }
+    }
+  }
+]
