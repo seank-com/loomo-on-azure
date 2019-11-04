@@ -555,5 +555,10 @@ Where the rectangle of the face is 52x52. To get a face of atleast 200x200, the 
 - Cognitive Services is not ready for this type of scenario and a different model should be used.
 - Alternately, a whole different approach might be to have Loomo scan for employee badges when people are detected and snap pictures when people without badges are spotted.
 
+**NOTE:** *All images were post processed to reduce size and add faces rectangles using one of the following imagemagick commands.*
 
+```bash
+convert source.jpg -resize 640x640 dest.png
+convert source.jpg -fill none -stroke red -strokewidth 3 -draw "rectangle <left>,<top>,<left+width>,<top+height>" -resize 320x320 dest.jpg
+```
 
