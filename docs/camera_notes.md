@@ -18,6 +18,8 @@ On Day 1, images were recorded at maximum resolution (3264x2448), most images ca
 
 There were a few images where faces could be detected
 
+![face1](day1/2514140f-6719-ab77-acc0-4fd5bb9bbe71.jpg)
+
 ```json
   "faceRectangle": {
     "top": 534,
@@ -31,7 +33,8 @@ There were a few images where faces could be detected
   },
 ```
 
-![face1](day1/2514140f-6719-ab77-acc0-4fd5bb9bbe71.jpg)
+![face2](day1/9aeffcf7-1b00-64eb-355a-5fa4f8804ea0.jpg)
+
 
 ```json
   "faceRectangle": {
@@ -46,22 +49,8 @@ There were a few images where faces could be detected
   },
 ```
 
-![face2](day1/9aeffcf7-1b00-64eb-355a-5fa4f8804ea0.jpg)
-
-```json
-  "faceRectangle": {
-    "top": 801,
-    "left": 1479,
-    "width": 189,
-    "height": 189
-  },
-  "blur": {
-    "blurLevel": "high",
-    "value": 1
-  },
-```
-
 ![face3](day1/9d0c968f-0f2c-92aa-f876-7f92f371c200.jpg)
+
 
 ```json
   "faceRectangle": {
